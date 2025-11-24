@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-// 1. 引入刚才创建的 AuthProvider 组件
-// 请确保路径正确，如果你的文件在 components/AuthProvider.tsx
+// AuthProvider 组件
 import AuthProvider from "@/components/ui/AuthProvider"; 
 
 const geistSans = Geist({
