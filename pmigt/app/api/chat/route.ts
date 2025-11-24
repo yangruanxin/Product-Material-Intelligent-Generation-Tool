@@ -1,6 +1,12 @@
 import { OpenAI } from 'openai';
 import { NextResponse } from 'next/server';
 
+interface AIResponseData {
+  title?: string;
+  selling_points?: string[] | string;
+  atmosphere?: string;
+}
+
 const client = new OpenAI({
   apiKey: process.env.VOLC_API_KEY,
   baseURL: 'https://ark.cn-beijing.volces.com/api/v3',
@@ -18,7 +24,6 @@ export async function POST(req: Request) {
 
     const targetModel = process.env.VOLC_ENDPOINT_ID!; 
 
-    // 🔥 修改点 1：Prompt 更加严厉，禁止使用序号，强制要求数组
     const systemPrompt = `
     你是一位资深电商运营专家。请根据商品主图和描述，生成结构化素材。
     
@@ -52,35 +57,30 @@ export async function POST(req: Request) {
 
     const aiRawText = response.choices[0].message.content;
     
-   
-    let parsedData: any = {};
+    let parsedData: AIResponseData = {};
+    
     try {
       const cleanJson = aiRawText?.replace(/```json|```/g, '').trim();
       parsedData = JSON.parse(cleanJson || '{}');
-    } catch (e) {
-      return NextResponse.json({ success: false, raw: aiRawText });
+    } catch { 
+      console.log("JSON 解析失败，尝试直接处理文本");
     }
 
-    // 🔥 修改点 2：数据清洗逻辑 (Data Cleaning)
-    // 无论 AI 返回的是什么怪样子，我们都把它修整成标准的数组
     let cleanSellingPoints: string[] = [];
+
     const rawPoints = parsedData.selling_points;
 
     if (Array.isArray(rawPoints)) {
-      // 情况 A: AI 返回了数组，但可能像你的截图那样，是一个长字符串 ["1. A 2. B"]
-      // 或者带有序号 ["1. A", "2. B"]
       cleanSellingPoints = rawPoints
-        .map(p => p.toString()) // 确保是字符串
-        .flatMap(p => p.split(/[\n\r]+|(\d+\.\s+)/)) // 尝试按照换行或序号切分
-        .map(p => p.replace(/^\d+\.|^[-*]\s+/, '').trim()) // 去掉开头的 1. 2. 或 - 
-        .filter(p => p && p.length > 2); // 过滤掉空字符串或太短的词
+        .map(p => String(p))
+        .flatMap(p => p.split(/[\n\r]+|(\d+\.\s+)/))
+        .map(p => p.replace(/^\d+\.|^[-*]\s+/, '').trim())
+        .filter(p => p && p.length > 2);
         
-      // 如果切分失败导致为空，就保留原始的（至少有内容）
       if (cleanSellingPoints.length === 0 && rawPoints.length > 0) {
-          cleanSellingPoints = rawPoints;
+          cleanSellingPoints = rawPoints.map(String);
       }
     } else if (typeof rawPoints === 'string') {
-      // 情况 B: AI 返回了纯字符串 "1. A 2. B"
       cleanSellingPoints = [rawPoints];
     }
 
@@ -88,14 +88,25 @@ export async function POST(req: Request) {
       success: true,
       data: {
         title: parsedData.title || "生成标题失败",
-        // 使用清洗后的数据
         selling_points: cleanSellingPoints.length > 0 ? cleanSellingPoints : ["卖点提取失败"],
         atmosphere: parsedData.atmosphere || "",
-        video_script: parsedData.video_script 
       }
     });
 
-  } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  } catch (error: unknown) { 
+
+    console.error("API 调用出错:", error);
+    
+    let errorMessage = "未知错误";
+    if (error instanceof Error) {
+        errorMessage = error.message;
+    } else if (typeof error === 'string') {
+        errorMessage = error;
+    }
+    
+    return NextResponse.json({
+      success: false,
+      error: errorMessage
+    }, { status: 500 });
   }
 }
