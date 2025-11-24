@@ -42,7 +42,7 @@ export default function HomePage() {
     setUploadError
   } = useFileUploader(); 
 
-    useEffect(() => {
+  useEffect(() => {
     const ensureUserSession = async () => {
       // 检查当前会话
       const { data: { user } } = await supabase.auth.getUser();

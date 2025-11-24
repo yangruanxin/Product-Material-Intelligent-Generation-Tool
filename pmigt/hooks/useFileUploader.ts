@@ -5,26 +5,27 @@ import { v4 as uuidv4 } from 'uuid';
 const SUPABASE_BUCKET_NAME = "images"; 
 const supabase = createClient();
 
-//获取userId
-const { data: { user } } = await supabase.auth.getUser();
-const userId = user?.id;
-
-
 export const useFileUploader = () => {
     const [isUploading, setIsUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
     const [uploadError, setUploadError] = useState<string | null>(null);
 
-     // 确保用户已登录 (或已匿名登录)
-    if (!userId) {
-        console.error("用户 ID 不存在，无法执行上传。");
-        return null;
-    }
-
     const uploadFileToSupabase = useCallback(async (file: File): Promise<string | null> => {
         setIsUploading(true);
         setUploadError(null);
         setUploadProgress(0);
+
+        //获取userId
+        const { data: { user } } = await supabase.auth.getUser();
+        const userId = user?.id;
+
+        console.log(user);
+
+        // 确保用户已登录 (或已匿名登录)
+        if (!userId) {
+            console.error("用户 ID 不存在，无法执行上传。");
+            return null;
+        }
 
         try {
             const fileExt = file.name.split(".").pop();
