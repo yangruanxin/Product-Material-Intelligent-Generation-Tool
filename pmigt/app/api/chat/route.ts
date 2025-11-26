@@ -1,17 +1,52 @@
 import { OpenAI } from 'openai';
 import { NextResponse } from 'next/server';
 import { AIContent } from '@/src/types';
+import { createClient } from '@supabase/supabase-js';
 
 const client = new OpenAI({
   apiKey: process.env.VOLC_API_KEY,
   baseURL: 'https://ark.cn-beijing.volces.com/api/v3',
 });
 
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
+
 export const runtime = 'edge';
 
 export async function POST(req: Request) {
   try {
-    const { imageUrl, userPrompt } = await req.json();
+    const { imageUrl, userPrompt, userId, sessionId: clientSessionId } = await req.json();
+
+    if (!userId) {
+       return NextResponse.json({ success: false, error: "未登录用户" }, { status: 401 });
+    }
+
+    let currentSessionId = clientSessionId;
+
+    // 如果前端没传 sessionId，说明是“新建会话”
+    if (!currentSessionId) {
+      const { data: session, error: sessionError } = await supabase
+        .from('sessions')
+        .insert({
+          user_id: userId,
+          name: userPrompt.slice(0, 10) || "新商品素材", // 默认取前10个字当标题
+        })
+        .select()
+        .single();
+      
+      if (sessionError) throw new Error("创建会话失败: " + sessionError.message);
+      currentSessionId = session.id;
+    }
+
+     await supabase.from('messages').insert({
+      session_id: currentSessionId,
+      user_id: userId,
+      role: 'user',
+      content: userPrompt,
+      image_url: imageUrl
+    });
 
     const targetModel = process.env.VOLC_ENDPOINT_ID!; 
 
@@ -81,6 +116,13 @@ export async function POST(req: Request) {
       selling_points: cleanSellingPoints,
       atmosphere: parsedData.atmosphere || "氛围感生成中...",
     };
+
+    await supabase.from('messages').insert({
+          session_id: currentSessionId,
+          user_id: userId,
+          role: 'assistant',
+          content: JSON.stringify(finalData), // 存最终的结构化数据
+        });
 
     return NextResponse.json({
       success: true,
