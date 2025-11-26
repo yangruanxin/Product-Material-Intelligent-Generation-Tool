@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 // AuthProvider 组件
 import AuthProvider from "@/components/ui/AuthProvider"; 
+import { Toaster } from "sonner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -31,6 +32,11 @@ export default function RootLayout({
       >
         <AuthProvider>
           {children}
+          {/* 渲染警告组件 */}
+          <Toaster 
+              position="top-right" // 右上角警告
+              richColors 
+          />
         </AuthProvider>
       </body>
     </html>

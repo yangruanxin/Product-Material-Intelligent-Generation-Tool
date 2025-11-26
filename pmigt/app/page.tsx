@@ -8,6 +8,8 @@ import { createClient } from '@/utils/supabase/client';
 
 import { UIMessage, UISession } from '@/src/types/index'
 
+import { toast } from "sonner"
+
 
 // 导入 Hook 和常量
 import { useFileUploader } from "@/hooks/useFileUploader"; 
@@ -22,6 +24,7 @@ const DUMMY_SESSIONS = [
 export default function HomePage() {
   const supabase = createClient();
   const [authStatus, setAuthStatus] = useState('Initializing...');
+  const [userId, setUserId] = useState<string | null>(null);//保存userId
 
   const [messages, setMessages] = useState<UIMessage[]>([]);
   const [input, setInput] = useState("");
@@ -32,6 +35,9 @@ export default function HomePage() {
   const [filePreviewUrl, setFilePreviewUrl] = useState<string | null>(null);
   // 当前会话中使用的图片 URL 
   const [currentSessionImageUrl, setCurrentSessionImageUrl] = useState<string | null>(null);
+
+  // 是否需要生成主图氛围
+  const [isImageGenerationMode, setIsImageGenerationMode] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -68,9 +74,11 @@ export default function HomePage() {
           console.error("Anonymous Sign-in Error:", error);
         } else if (data.user) {
           setAuthStatus(`Anonymous sign-in successful. UID: ${data.user.id.substring(0, 8)}...`);
+          setUserId(data.user.id);
         }
       } else {
         setAuthStatus(`Session exists. UID: ${user.id.substring(0, 8)}...`);
+        setUserId(user.id);
       }
     };
     
@@ -152,7 +160,7 @@ export default function HomePage() {
     // 增加计数器
     setSessionCounter(prevCounter => prevCounter + 1);
     // 模拟新建对话
-    console.log('--- 新建对话被点击，已创建会话 ID:', newId);
+    console.log('新建对话被点击，已创建会话 ID:', newId);
   }, [sessionCounter]);
 
   // 会话切换处理
@@ -163,8 +171,53 @@ export default function HomePage() {
     console.log(`切换到会话: ${id}`);
   }, []);
 
+  // 处理图片生成模式切换
+  const toggleImageGenerationMode = useCallback(() => {
+    setIsImageGenerationMode(prev => !prev);
+  }, []);
 
-  // 发送请求
+  // 调用图片生成API
+  const handleGenerateImage = useCallback(async(
+    productImageUrl: string,
+    styleImageUrl: string,
+    userPrompt:string
+  ): Promise<string | null> => {
+    try {
+      const response = await fetch('/api/generate_image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          productImageUrl,
+          styleImageUrl,
+          userPrompt,
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP错误：${response.status}`);
+      }
+
+      const result = await response.json();
+
+      if (result.success) {
+        return result.imageUrl;
+      } else {
+        const errorMessage: string = result.error || "未知生成错误";
+        toast.error("图片生成失败", {
+          description:errorMessage
+        })
+        return null;
+      }
+    } catch (error) {
+      console.error("调用图片生成接口时发生网络或解析错误：", error);
+      toast.error("网络连接失败", {
+        description:"无法连接到图片生成服务"
+      })
+      return null;
+    }
+  },[])
+
+  // 发送对话请求
   const handleSend = useCallback(async () => {
     const trimmedInput = input.trim();
     if (isLoading || isUploading) return;
@@ -172,7 +225,9 @@ export default function HomePage() {
     console.log("authStatus:",authStatus);
     // 确保认证已完成
     if (authStatus.startsWith('Initializing') || authStatus.startsWith('❌')) {
-      setMessages((prev) => [...prev, { text: " 认证会话正在初始化或已失败，请稍候再试。", sender: "ai" }]);
+      toast.error("会话错误", {
+          description: "认证会话正在初始化或已失败，请稍候再试。",
+      });
       return;
     }
     
@@ -184,7 +239,9 @@ export default function HomePage() {
     if (uploadedFile) {
       const newUrl = await uploadFileToSupabase(uploadedFile);
       if (!newUrl) {
-        setMessages((prev) => [...prev, { text: "图片上传失败，请重试。", sender: "ai" }]);
+        toast.error("上传失败", {
+            description: "图片上传失败，请重试。",
+        });
         return;
       } // 上传失败，终止发送
       effectiveImageUrl = newUrl;//更新图片
@@ -193,11 +250,9 @@ export default function HomePage() {
 
     // 若当前会话未上传过图片，拦截请求
     if (!effectiveImageUrl) {
-      const errorMsg: UIMessage = {
-        text: "当前会话需要一张商品参考图，请先上传一张商品图片。",
-        sender: "ai"
-      };
-      setMessages((prev) => [...prev, errorMsg]);
+      toast.warning("缺少素材", {
+          description: "当前会话需要一张商品参考图，请先上传一张商品图片。",
+      });
       return;
     }
 
@@ -224,6 +279,8 @@ export default function HomePage() {
         body: JSON.stringify({
           imageUrl: effectiveImageUrl, 
           userPrompt: trimmedInput,
+          userId: userId,
+          sessionId: activeSessionId,
           // // 发送历史消息 (用于多轮上下文)
           // history: messagesRef.current.map(msg => ({ sender: msg.sender, text: msg.text }))
         }),
@@ -241,7 +298,29 @@ export default function HomePage() {
           氛围：${data.atmosphere}
           (您可以继续输入指令进行修正。)
         `;
-        aiResponse = { text: responseText, sender: "ai"};
+        aiResponse = { text: responseText, sender: "ai" };
+        
+        // 若图片生成模式被激活
+        if (isImageGenerationMode) {
+          const styleImageUrl = effectiveImageUrl;
+          const generatedImageUrl = await handleGenerateImage(
+            effectiveImageUrl,
+            styleImageUrl,
+            trimmedInput
+          )
+          console.log("effectiveImageUrl,styleImageUrl,trimmedInput:",effectiveImageUrl,styleImageUrl,trimmedInput)
+          if (generatedImageUrl) {
+            const imageMessage: UIMessage = { 
+              text: "主图氛围图生成成功，请查看图片。", 
+              sender: "ai", 
+              imageUrl: generatedImageUrl 
+            };
+            setMessages((prev) => [...prev, aiResponse, imageMessage]);
+            return; 
+          }
+        } else {
+          setMessages((prev) => [...prev, aiResponse]);
+        }
       } else {
         aiResponse = {
           text: `服务错误：${result.error || '无法获取生成结果'}`,
@@ -294,6 +373,8 @@ export default function HomePage() {
             uploadError={uploadError}
             isDragging={isDragging}
             authStatus={authStatus}
+            isImageGenerationMode={isImageGenerationMode}
+            toggleImageGenerationMode={toggleImageGenerationMode}
             
             // Handlers
             setInput={setInput}
