@@ -14,16 +14,8 @@ import { toast } from "sonner"
 // 导入 Hook 和常量
 import { useFileUploader } from "@/hooks/useFileUploader"; 
 
-// 会话列表模拟
-const DUMMY_SESSIONS = [
-  { id: 's1', name: '图片素材生成 (1)', isActive: true },
-  { id: 's2', name: '电商宣传文案 (2)', isActive: false },
-  { id: 's3', name: '周报总结草稿 (3)', isActive: false },
-];
-
 export default function HomePage() {
   const supabase = createClient();
-  const [authStatus, setAuthStatus] = useState('Initializing...');
   const [userId, setUserId] = useState<string | null>(null);//保存userId
 
   const [messages, setMessages] = useState<UIMessage[]>([]);
@@ -43,11 +35,9 @@ export default function HomePage() {
 
   // 会话列表
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [sessions, setSessions] = useState<UISession[]>(DUMMY_SESSIONS);
+  const [sessions, setSessions] = useState<UISession[]>([]);
   // 当前用户正在查看的会话ID
-  const [activeSessionId, setActiveSessionId] = useState<string>('s1');
-  // 创建新会话
-  const [sessionCounter, setSessionCounter] = useState<number>(DUMMY_SESSIONS.length + 1);
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   
   //整合 Hook
   const { 
@@ -60,27 +50,27 @@ export default function HomePage() {
 
   useEffect(() => {
     const ensureUserSession = async () => {
-      // 检查当前会话
       const { data: { user } } = await supabase.auth.getUser();
-      console.log("用户：", user);
-      
-      if (!user) {
-        setAuthStatus("Session not found, attempting anonymous sign-in...");
-        // 自动创建新用户 (匿名登录)
-        const { data, error } = await supabase.auth.signInAnonymously();
-        console.log("创建新用户：", data);
-        if (error) {
-          setAuthStatus(`Anonymous sign-in failed: ${error.message}`);
-          console.error("Anonymous Sign-in Error:", error);
-        } else if (data.user) {
-          setAuthStatus(`Anonymous sign-in successful. UID: ${data.user.id.substring(0, 8)}...`);
-          setUserId(data.user.id);
-        }
-      } else {
-        setAuthStatus(`Session exists. UID: ${user.id.substring(0, 8)}...`);
+
+      if (user) {
         setUserId(user.id);
+        return;
       }
+
+      const { data, error } = await supabase.auth.signInAnonymously();
+      if (error) {
+        console.error("匿名登录失败:", error);
+        toast.error("用户身份创建失败，请刷新再试");
+        return;
+      }
+      if (!data.user) {
+        console.error("匿名登录返回空用户");
+        toast.error("无法创建用户，请稍后重试");
+        return;
+      }
+      setUserId(data.user.id);
     };
+
     
     // 确保这只在客户端运行
     if (typeof window !== 'undefined') {
@@ -147,27 +137,19 @@ export default function HomePage() {
 
   // 新建会话处理
   const handleNewSession = useCallback(() => {
-    const newId = `temp-${sessionCounter}`;
-    const newSession: UISession = {
-      id: newId,
-      name: `新对话 ${sessionCounter}`, // 默认名称
-    };
+    // 清空消息
+    setMessages([]);
+    // 切换到一个“尚未创建的会话”
+    setActiveSessionId(null);
+    setCurrentSessionImageUrl(null);
+    console.log("前端新建对话，但未向后端创建 session。等待第一次发消息后创建");
+  }, []);
 
-    // 将新会话添加到列表最前面
-    setSessions(prevSessions => [newSession, ...prevSessions]);
-    // 自动切换到新创建的会话
-    setActiveSessionId(newId);
-    // 增加计数器
-    setSessionCounter(prevCounter => prevCounter + 1);
-    // 模拟新建对话
-    console.log('新建对话被点击，已创建会话 ID:', newId);
-  }, [sessionCounter]);
 
   // 会话切换处理
   const handleSessionChange = useCallback((id: string) => {
     // 更新当前激活的会话 ID
     setActiveSessionId(id);
-    //模拟
     console.log(`切换到会话: ${id}`);
   }, []);
 
@@ -221,15 +203,6 @@ export default function HomePage() {
   const handleSend = useCallback(async () => {
     const trimmedInput = input.trim();
     if (isLoading || isUploading) return;
-
-    console.log("authStatus:",authStatus);
-    // 确保认证已完成
-    if (authStatus.startsWith('Initializing') || authStatus.startsWith('❌')) {
-      toast.error("会话错误", {
-          description: "认证会话正在初始化或已失败，请稍候再试。",
-      });
-      return;
-    }
     
     //用局部变量effectiveImageUrl保存当前会话最新商品图
     let effectiveImageUrl = currentSessionImageUrl;
@@ -308,7 +281,7 @@ export default function HomePage() {
             styleImageUrl,
             trimmedInput
           )
-          console.log("effectiveImageUrl,styleImageUrl,trimmedInput:",effectiveImageUrl,styleImageUrl,trimmedInput)
+          console.log("effectiveImageUrl:",effectiveImageUrl,)
           if (generatedImageUrl) {
             const imageMessage: UIMessage = { 
               text: "主图氛围图生成成功，请查看图片。", 
@@ -321,21 +294,31 @@ export default function HomePage() {
         } else {
           setMessages((prev) => [...prev, aiResponse]);
         }
-      } else {
-        aiResponse = {
-          text: `服务错误：${result.error || '无法获取生成结果'}`,
-          sender: "ai"
-        };
-      }
 
-      setMessages((prev) => [...prev, aiResponse]);
+        // 若为新会话，则把后端返回的sessionId更新
+        if (result.sessionId && !activeSessionId) {
+          setActiveSessionId(result.sessionId);
+
+          // 插入会话列表（前端 UI）
+          setSessions(prev => [
+            {
+              id: result.sessionId,
+              name: trimmedInput.slice(0, 10) || "新会话"
+            },
+            ...prev
+          ]);
+        }
+      } else {
+          toast.error("服务错误", {
+            description: result.error || "无法获取生成结果。",
+          });
+      }
     } catch (error) {
       console.error("API调用失败：", error);
-      const errorMsg: UIMessage = {
-        text: "网络连接失败，请检查服务状态。",
-        sender:"ai"
-      }
-      setMessages((prev) => [...prev, errorMsg]);
+      toast.error("文案生成失败", {
+          description:"请稍后再试"
+        })
+        return;
     } finally {
       setIsLoading(false);
     }
@@ -358,7 +341,7 @@ export default function HomePage() {
       activeSessionId={activeSessionId}
         >
         {/* 聊天消息列表 */}
-        <ChatMessageList messages={messages} />
+      <ChatMessageList messages={messages} isLoading={isLoading} />
 
         {/* 输入和上传区域 */}
         <ChatInputArea
@@ -372,7 +355,6 @@ export default function HomePage() {
             uploadProgress={uploadProgress}
             uploadError={uploadError}
             isDragging={isDragging}
-            authStatus={authStatus}
             isImageGenerationMode={isImageGenerationMode}
             toggleImageGenerationMode={toggleImageGenerationMode}
             

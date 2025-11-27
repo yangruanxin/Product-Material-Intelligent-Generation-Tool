@@ -6,7 +6,7 @@ import { UISession } from '@/src/types/index';
 interface ChatLayoutProps {
     // Sidebar Props
     sessions: UISession[];
-    activeSessionId: string;
+    activeSessionId: string | null;
     onSessionChange: (id: string) => void;
     onNewSession: () => void;
     currentUserName: string;

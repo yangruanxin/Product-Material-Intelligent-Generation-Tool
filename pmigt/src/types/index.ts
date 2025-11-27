@@ -31,6 +31,7 @@ export interface UIMessage{
   text: string;
   sender: "user" | "ai";
   imageUrl?: string;
+  loading?: boolean;
 }
 
 // UI中的会话数据结构

@@ -92,7 +92,7 @@ export async function POST(req: Request) {
       console.log("JSON 解析失败，尝试直接处理文本");
     }
 
-    // 3. 数据清洗与标准化
+    // 数据清洗与标准化
     let cleanSellingPoints: string[] = [];
     const rawPoints = parsedData.selling_points;
 
@@ -110,7 +110,7 @@ export async function POST(req: Request) {
       cleanSellingPoints = ["卖点提取中..."];
     }
 
-    // 4. 组装最终返回数据，严格符合 AIContent 结构
+    // 组装最终返回数据，严格符合 AIContent 结构
     const finalData: AIContent = {
       title: parsedData.title || "生成标题失败",
       selling_points: cleanSellingPoints,
@@ -126,7 +126,8 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       success: true,
-      data: finalData 
+      data: finalData,
+      sessionId:currentSessionId
     });
 
   } catch (error: unknown) { 

@@ -15,7 +15,6 @@ interface ChatInputAreaProps {
     uploadProgress: number;
     uploadError: string | null;
     isDragging: boolean;
-    authStatus: string;
     isImageGenerationMode: boolean;//是否需要生成主图氛围
     
     // Handlers
@@ -36,7 +35,7 @@ interface ChatInputAreaProps {
 export const ChatInputArea: React.FC<ChatInputAreaProps> = (props) => {
     const { 
         input, isLoading, isUploading, uploadedFile, filePreviewUrl, currentSessionImageUrl, 
-        uploadProgress, uploadError, isDragging, authStatus, setInput, handleSend, 
+        uploadProgress, uploadError, isDragging, setInput, handleSend, 
         handleFileChange, handleKeyDown, handleDragOver, handleDragLeave, handleDrop, clearFile, 
         isImageGenerationMode,toggleImageGenerationMode,
         fileInputRef 
@@ -51,7 +50,7 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = (props) => {
     }, [isUploading, uploadProgress, isDragging, currentSessionImageUrl]);
 
     // 确定发送按钮是否禁用
-    const isSendDisabled = authStatus.startsWith('Initializing') || isLoading || isUploading || (!input.trim() && !currentSessionImageUrl && !uploadedFile);
+    const isSendDisabled = isLoading || isUploading || (!input.trim() && !currentSessionImageUrl && !uploadedFile);
 
 
     return (

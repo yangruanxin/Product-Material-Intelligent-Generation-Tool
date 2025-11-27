@@ -10,7 +10,7 @@ interface SidebarProps {
     sessions: UISession[];
     currentUserName: string;
     onSessionClick: (sessionId: string) => void;
-    currentActiveId: string;
+    currentActiveId: string | null;
     onNewSession: () => void;//新建对话
 }
 
