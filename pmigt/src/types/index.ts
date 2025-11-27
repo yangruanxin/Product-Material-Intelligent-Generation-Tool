@@ -28,7 +28,7 @@ export interface AIContent {
 
 // UI中显示的单条消息结构
 export interface UIMessage{
-  text: string;
+  text?: string;
   sender: "user" | "ai";
   imageUrl?: string;
   loading?: boolean;

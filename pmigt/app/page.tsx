@@ -34,10 +34,12 @@ export default function HomePage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // 会话列表
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [sessions, setSessions] = useState<UISession[]>([]);
   // 当前用户正在查看的会话ID
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+
+  // AI占位消息，用于加载动画，后续删除
+  const placeholderIndexRef = useRef<number | null>(null);
   
   //整合 Hook
   const { 
@@ -142,6 +144,7 @@ export default function HomePage() {
     // 切换到一个“尚未创建的会话”
     setActiveSessionId(null);
     setCurrentSessionImageUrl(null);
+    setIsImageGenerationMode(false);
     console.log("前端新建对话，但未向后端创建 session。等待第一次发消息后创建");
   }, []);
 
@@ -235,8 +238,18 @@ export default function HomePage() {
       sender: "user",
       imageUrl: uploadedFile ? effectiveImageUrl : undefined
     };
-    setMessages((prev) => [...prev, userMessage]);
-
+    //AI占位消息，用于加载特效，生成完后删除 
+    const aiPlaceholder: UIMessage = {
+        sender: 'ai',
+        loading:true,//启动加载动画
+    };
+    
+    // 将用户消息和 AI 占位消息一起推入列表，记录占位的下标
+    setMessages(prev => {
+      const newList = [...prev, userMessage, aiPlaceholder];
+      placeholderIndexRef.current = newList.length - 1; 
+      return newList;
+    });
 
     // 启动加载状态并更新图片会话状态
     setIsLoading(true);
@@ -260,7 +273,6 @@ export default function HomePage() {
       });
       
       const result = await response.json();
-      let aiResponse: UIMessage;
 
       if (result.success) {
         const data = result.data;
@@ -271,7 +283,12 @@ export default function HomePage() {
           氛围：${data.atmosphere}
           (您可以继续输入指令进行修正。)
         `;
-        aiResponse = { text: responseText, sender: "ai" };
+
+        const aiFinalMessage: UIMessage = {
+          sender: "ai",
+          text: responseText,
+          imageUrl: undefined
+        };
         
         // 若图片生成模式被激活
         if (isImageGenerationMode) {
@@ -283,17 +300,19 @@ export default function HomePage() {
           )
           console.log("effectiveImageUrl:",effectiveImageUrl,)
           if (generatedImageUrl) {
-            const imageMessage: UIMessage = { 
-              text: "主图氛围图生成成功，请查看图片。", 
-              sender: "ai", 
-              imageUrl: generatedImageUrl 
-            };
-            setMessages((prev) => [...prev, aiResponse, imageMessage]);
-            return; 
+            aiFinalMessage.imageUrl = generatedImageUrl;
           }
-        } else {
-          setMessages((prev) => [...prev, aiResponse]);
-        }
+        } 
+
+        // 删除 AI 占位消息并追加真正消息
+        setMessages(prev => {
+          const newList = [...prev];
+          if (placeholderIndexRef.current !== null) {
+            newList.splice(placeholderIndexRef.current, 1);
+          }
+          newList.push(aiFinalMessage);
+          return newList;
+        });
 
         // 若为新会话，则把后端返回的sessionId更新
         if (result.sessionId && !activeSessionId) {
@@ -341,7 +360,7 @@ export default function HomePage() {
       activeSessionId={activeSessionId}
         >
         {/* 聊天消息列表 */}
-      <ChatMessageList messages={messages} isLoading={isLoading} />
+      <ChatMessageList messages={messages}/>
 
         {/* 输入和上传区域 */}
         <ChatInputArea

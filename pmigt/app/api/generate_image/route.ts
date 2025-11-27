@@ -24,13 +24,11 @@ export async function POST(req: Request) {
       model: process.env.VOLC_IMAGE_ENDPOINT_ID!, 
       prompt: imageGenerationPrompt,
       size: "1024x1024",
-      // @ts-expect-error: ignore type check
-      extra_body: {
-        image: [productImageUrl, styleImageUrl],
-        return_url: true,
-        sequential_image_generation: "disabled",
-      }
-    });
+      image: [productImageUrl, styleImageUrl],
+      return_url: true,
+      sequential_image_generation: "disabled",
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    }as any);
 
     const generatedImageUrl = imageResponse.data?.[0]?.url;
 
