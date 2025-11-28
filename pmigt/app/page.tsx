@@ -267,6 +267,7 @@ export default function HomePage() {
           userPrompt: trimmedInput,
           userId: userId,
           sessionId: activeSessionId,
+          credentials: 'include', 
           // // 发送历史消息 (用于多轮上下文)
           // history: messagesRef.current.map(msg => ({ sender: msg.sender, text: msg.text }))
         }),

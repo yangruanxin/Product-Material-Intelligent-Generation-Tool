@@ -9,7 +9,7 @@ const client = new OpenAI({
 });
 
 
-export const runtime = 'edge';
+export const maxDuration = 30; 
 
 export async function POST(req: Request) {
   try {
@@ -20,6 +20,8 @@ export async function POST(req: Request) {
     // 这比 req.json().userId 可靠
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
+    console.log("【来源】Cookie 解析结果:", user ? `✅ 成功 (ID: ${user.id})` : "❌ 失败 (无用户)");
+
     // 如果没拿到 user，直接拦截
     if (authError || !user) {
       return NextResponse.json({ success: false, error: "请先登录" }, { status: 401 });
@@ -28,7 +30,6 @@ export async function POST(req: Request) {
     // 使用这个真实的 ID 替换之前的 userId 参数
     const userId = user.id;
 
-    console.log("准备写入数据库的 UserID:", userId); 
 
     // 4. 解析 Body：去掉了 userId 的解构，因为上面已经拿到了
     const { imageUrl, userPrompt, sessionId: clientSessionId } = await req.json();
