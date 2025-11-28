@@ -7,7 +7,7 @@ export async function GET(req: Request) {
   try {
     const supabase = await createClient();
 
-    // 1. 获取 sessionId 参数 (这里用到了 req)
+    // 获取 sessionId 参数 (这里用到了 req)
     const { searchParams } = new URL(req.url);
     const sessionId = searchParams.get('sessionId');
 

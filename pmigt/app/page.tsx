@@ -6,13 +6,14 @@ import { ChatMessageList } from "@/components/chat/ChatMessageList";
 import { ChatInputArea } from "@/components/chat/ChatInputArea";
 import { createClient } from '@/utils/supabase/client'; 
 
-import { UIMessage, UISession } from '@/src/types/index'
+import { Message, UIMessage, UISession} from '@/src/types/index'
 
 import { toast } from "sonner"
 
 
 // 导入 Hook 和常量
 import { useFileUploader } from "@/hooks/useFileUploader"; 
+import { useSessionManager } from "@/hooks/useSessionManager";
 
 export default function HomePage() {
   const supabase = createClient();
@@ -33,11 +34,6 @@ export default function HomePage() {
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // 会话列表
-  const [sessions, setSessions] = useState<UISession[]>([]);
-  // 当前用户正在查看的会话ID
-  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
-
   // AI占位消息，用于加载动画，后续删除
   const placeholderIndexRef = useRef<number | null>(null);
   
@@ -49,6 +45,23 @@ export default function HomePage() {
     uploadFileToSupabase,
     setUploadError
   } = useFileUploader(); 
+
+  const resetSessionContent = useCallback(() => {
+        setMessages([]);
+        setCurrentSessionImageUrl(null);
+        setIsImageGenerationMode(false);
+    }, []);
+
+  const { 
+      sessions, 
+      activeSessionId, 
+      addSession,
+      handleNewSession,
+      handleSessionChange,
+      // isSessionLoading,
+      // sessionError,
+      loadSessionMessages,
+  } = useSessionManager(userId, resetSessionContent);
 
   useEffect(() => {
     const ensureUserSession = async () => {
@@ -79,6 +92,35 @@ export default function HomePage() {
       ensureUserSession();
     }
   }, [supabase]);
+
+  //监听 activeSessionId 变化并加载历史消息
+  useEffect(() => {
+      if (activeSessionId) {
+          // 确保 content 已经清空，避免闪烁
+          const loadHistory = async () => {
+              // 可以设置一个临时的 messageLoading 状态来显示加载动画
+              // setMessagesLoading(true); 
+
+              const history = await loadSessionMessages(activeSessionId);
+              
+            if (history) {
+                const dbMessages = history as Message[];
+                    //格式转换 
+                const uiMessages: UIMessage[] = dbMessages.map(dbMessage => ({
+                    text: dbMessage.content, 
+                    sender: dbMessage.role === 'assistant' ? 'ai' : dbMessage.role as 'user' | 'ai',
+                    imageUrl: dbMessage.image_url || undefined,
+                    loading: false,
+                }));
+                
+                setMessages(uiMessages);
+              }
+              // setMessagesLoading(false); 
+          };
+          loadHistory();
+      }
+      // 只有在 activeSessionId 改变时运行
+  }, [activeSessionId, loadSessionMessages, setMessages]);
 
   // 清除已选择的文件
   const clearFile = useCallback(() => {
@@ -136,25 +178,6 @@ export default function HomePage() {
       handleFileDropOrSelect(file);
     }
   };
-
-  // 新建会话处理
-  const handleNewSession = useCallback(() => {
-    // 清空消息
-    setMessages([]);
-    // 切换到一个“尚未创建的会话”
-    setActiveSessionId(null);
-    setCurrentSessionImageUrl(null);
-    setIsImageGenerationMode(false);
-    console.log("前端新建对话，但未向后端创建 session。等待第一次发消息后创建");
-  }, []);
-
-
-  // 会话切换处理
-  const handleSessionChange = useCallback((id: string) => {
-    // 更新当前激活的会话 ID
-    setActiveSessionId(id);
-    console.log(`切换到会话: ${id}`);
-  }, []);
 
   // 处理图片生成模式切换
   const toggleImageGenerationMode = useCallback(() => {
@@ -317,16 +340,15 @@ export default function HomePage() {
 
         // 若为新会话，则把后端返回的sessionId更新
         if (result.sessionId && !activeSessionId) {
-          setActiveSessionId(result.sessionId);
-
-          // 插入会话列表（前端 UI）
-          setSessions(prev => [
-            {
+          // 构造新的会话对象
+          const newSession: UISession = {
               id: result.sessionId,
-              name: trimmedInput.slice(0, 10) || "新会话"
-            },
-            ...prev
-          ]);
+              name: trimmedInput.slice(0, 10) || "新会话",
+          };
+
+          // 使用 Hook 的 addSession 函数来更新会话列表和激活状态
+          // addSession 会同时更新 sessions 列表，并设置 activeSessionId
+          addSession(newSession);
         }
       } else {
           toast.error("服务错误", {
@@ -355,7 +377,7 @@ export default function HomePage() {
   return (
     <ChatLayout 
       sessions={sessions}
-      currentUserName="您的用户ID/昵称" // 实际应从认证状态获取
+      currentUserName="User" 
       onSessionChange={handleSessionChange}
       onNewSession={handleNewSession}
       activeSessionId={activeSessionId}
