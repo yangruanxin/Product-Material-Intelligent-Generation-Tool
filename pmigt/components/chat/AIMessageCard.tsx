@@ -38,15 +38,32 @@ const formatMessageText = (text: string) => {
 
 interface AIMessageCardProps {
     message: UIMessage;
-    loading: boolean;
 }
 
 /**
  * AI 回复消息卡片组件。
  * 根据消息是否包含图片 URL，渲染纯文本或图文混合布局。
  */
-export const AIMessageCard: React.FC<AIMessageCardProps> = ({ message,loading }) => {
-    const { text, imageUrl } = message;
+export const AIMessageCard: React.FC<AIMessageCardProps> = ({ message}) => {
+    const { text, imageUrl, loading } = message;
+    
+    //若在加载
+    if (loading) {
+        return (
+        <div className="flex gap-3 items-start">
+            {/* 头像骨架 */}
+            <div className="animate-pulse">
+                <AiAvatar />
+            </div>
+
+            {/* 气泡骨架 */}
+            <div className="flex-1 space-y-3">
+            <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-2/3"></div>
+            <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-1/2"></div>
+            </div>
+        </div>
+        );
+    }
 
     // 纯文本卡片
     if (!imageUrl) {
@@ -55,7 +72,7 @@ export const AIMessageCard: React.FC<AIMessageCardProps> = ({ message,loading })
                 
                 {/* AI 头像*/}
                 <div className="relative mt-2">
-                    <AiAvatar size={40} loading={loading}/>
+                    <AiAvatar size={40}/>
                 </div>
 
                 {/* 文本气泡 */}
@@ -70,7 +87,7 @@ export const AIMessageCard: React.FC<AIMessageCardProps> = ({ message,loading })
                         leading-relaxed text-[15px]
                     "
                 >
-                    {formatMessageText(text)}
+                    {formatMessageText(text??"")}
                 </div>
             </div>
         );
@@ -81,7 +98,7 @@ export const AIMessageCard: React.FC<AIMessageCardProps> = ({ message,loading })
         <div className="flex items-start space-x-4 max-w-[80%]">
             {/* AI 头像 */}
             <div className="relative mt-2">
-                <AiAvatar size={40} loading={loading} />
+                <AiAvatar size={40}/>
             </div>
 
             {/* 主体内容 */}
@@ -101,7 +118,7 @@ export const AIMessageCard: React.FC<AIMessageCardProps> = ({ message,loading })
                     </h3>
 
                     <div className="text-gray-700 dark:text-gray-300 leading-relaxed text-[15px]">
-                        {formatMessageText(text)}
+                        {formatMessageText(text??"")}
                     </div>
                 </div>
 
