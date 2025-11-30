@@ -152,7 +152,7 @@ export async function POST(req: Request) {
       atmosphere: parsedData.atmosphere || "氛围感生成中...",
     };
 
-    // 5. 存入 AI 消息：同样使用 userId
+    // 存入 AI 消息：同样使用 userId
     await supabase.from('messages').insert({
       session_id: currentSessionId,
       user_id: userId,

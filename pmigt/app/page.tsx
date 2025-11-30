@@ -10,6 +10,7 @@ import { Message, UIMessage, UISession} from '@/src/types/index'
 
 import { toast } from "sonner"
 
+import { formatAIMarketingText } from '@/utils/messageFormatter';
 
 // 导入 Hook 和常量
 import { useFileUploader } from "@/hooks/useFileUploader"; 
@@ -98,21 +99,38 @@ export default function HomePage() {
       if (activeSessionId) {
           // 确保 content 已经清空，避免闪烁
           const loadHistory = async () => {
-              // 可以设置一个临时的 messageLoading 状态来显示加载动画
+              //待设置一个临时的 messageLoading 状态来显示加载动画
               // setMessagesLoading(true); 
 
               const history = await loadSessionMessages(activeSessionId);
               
             if (history) {
                 const dbMessages = history as Message[];
-                    //格式转换 
-                const uiMessages: UIMessage[] = dbMessages.map(dbMessage => ({
-                    text: dbMessage.content, 
-                    sender: dbMessage.role === 'assistant' ? 'ai' : dbMessage.role as 'user' | 'ai',
-                    imageUrl: dbMessage.image_url || undefined,
-                    loading: false,
-                }));
-                
+                //格式转换 
+                const uiMessages: UIMessage[] = dbMessages.map(dbMessage => {
+                    let messageText = dbMessage.content;
+                    if (dbMessage.role === 'assistant') {
+                        try {
+                            // 尝试解析 JSON 字符串
+                            const data = JSON.parse(dbMessage.content);
+                            
+                            // 调用工具函数进行格式化，消除重复代码
+                            messageText = formatAIMarketingText(data); 
+                        } catch (e) {
+                            // 如果解析失败，保留原始 content 字符串
+                            console.warn(`会话 ${activeSessionId} 中的 AI 消息解析失败，可能不是 JSON 格式。`, e);
+                        }
+                    }
+
+                        // 返回 UIMessage 结构
+                        return {
+                            id: dbMessage.id, // 确保 ID 存在
+                            text: messageText, // 使用格式化后的文本
+                            sender: dbMessage.role === 'assistant' ? 'ai' : dbMessage.role as 'user' | 'ai',
+                            imageUrl: dbMessage.image_url || undefined,
+                            loading: false,
+                        };
+                    })
                 setMessages(uiMessages);
               }
               // setMessagesLoading(false); 
@@ -300,13 +318,7 @@ export default function HomePage() {
 
       if (result.success) {
         const data = result.data;
-        const responseText = `
-          素材生成成功！
-          标题：${data.title}
-          卖点：${data.selling_points.join(' | ')}
-          氛围：${data.atmosphere}
-          (您可以继续输入指令进行修正。)
-        `;
+        const responseText = formatAIMarketingText(data);
 
         const aiFinalMessage: UIMessage = {
           sender: "ai",

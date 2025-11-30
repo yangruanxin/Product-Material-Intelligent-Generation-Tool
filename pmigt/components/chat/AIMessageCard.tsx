@@ -86,6 +86,7 @@ export const AIMessageCard: React.FC<AIMessageCardProps> = ({ message}) => {
                         text-gray-800 dark:text-gray-200
                         leading-relaxed text-[15px]
                     "
+                    style={{ whiteSpace: 'pre-wrap' }}
                 >
                     {formatMessageText(text??"")}
                 </div>
