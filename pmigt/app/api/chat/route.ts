@@ -32,11 +32,11 @@ export async function POST(req: Request) {
 
 
     // 4. 解析 Body：去掉了 userId 的解构，因为上面已经拿到了
-    const { imageUrl, userPrompt, sessionId: clientSessionId } = await req.json();
+    const { imageUrl, userPrompt, sessionId} = await req.json();
 
-    let currentSessionId = clientSessionId;
+    let currentSessionId = sessionId;
 
-     let finalImageUrl = imageUrl;
+    let finalImageUrl = imageUrl;
     if (imageUrl && imageUrl.startsWith('http')) {
       try {
         console.log("正在下载图片并转换为 Base64...", imageUrl);

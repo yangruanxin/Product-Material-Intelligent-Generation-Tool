@@ -1,6 +1,7 @@
 // app/api/generate-image/route.ts
 import { OpenAI } from 'openai';
 import { NextResponse } from 'next/server';
+import { createClient } from '@/utils/supabase/server'; 
 
 const client = new OpenAI({
   apiKey: process.env.VOLC_API_KEY,
@@ -11,8 +12,47 @@ export const maxDuration = 60;
 
 export async function POST(req: Request) {
   try {
+
+    const supabase = await createClient();
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    console.log("【来源】Cookie 解析结果:", user ? `✅ 成功 (ID: ${user.id})` : "❌ 失败 (无用户)");
+
+    // 如果没拿到 user，直接拦截
+    if (authError || !user) {
+      return NextResponse.json({ success: false, error: "请先登录" }, { status: 401 });
+    }
+    
+    // 使用这个真实的 ID 替换之前的 userId 参数
+    const userId = user.id;
+
     // 接收前端传来的参数
-    const { productImageUrl, styleImageUrl,userPrompt} = await req.json();
+    const { productImageUrl, styleImageUrl,userPrompt, sessionId} = await req.json();
+
+    let currentSessionId = sessionId;
+
+    if (!currentSessionId) {
+      const { data: session, error: sessionError } = await supabase
+        .from('sessions')
+        .insert({
+          user_id: userId,
+          name: "图片合成任务", // 给新会话起个默认名字
+        })
+        .select()
+        .single();
+      
+      if (sessionError) throw new Error("创建会话失败: " + sessionError.message);
+      currentSessionId = session.id;
+    }
+
+     await supabase.from('messages').insert({
+      session_id: currentSessionId,
+      user_id: userId,
+      role: 'user',
+      content: userPrompt || "请求生成图片",
+      image_url: productImageUrl // 记录用户传的主图
+    });
 
     const imageGenerationPrompt = `
     #role
@@ -67,9 +107,18 @@ export async function POST(req: Request) {
         throw new Error("模型未返回图片 URL");
     }
 
+    await supabase.from('messages').insert({
+      session_id: currentSessionId,
+      user_id: userId,
+      role: 'assistant',
+      content: JSON.stringify({ note: "图片已生成" }),
+      image_url: generatedImageUrl
+    });
+
     return NextResponse.json({ 
         success: true, 
-        imageUrl: generatedImageUrl 
+        imageUrl: generatedImageUrl,
+        sessionId: currentSessionId
     });
 
   } catch (error: unknown) {
