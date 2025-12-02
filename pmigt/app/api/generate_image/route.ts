@@ -28,7 +28,7 @@ export async function POST(req: Request) {
     const userId = user.id;
 
     // 接收前端传来的参数
-    const { productImageUrl, styleImageUrl,userPrompt, sessionId} = await req.json();
+    const { saveImageUrl,contextImageUrl,isRegenerate,deleteMessageId, styleImageUrl,userPrompt, sessionId} = await req.json();
 
     let currentSessionId = sessionId;
 
@@ -46,13 +46,20 @@ export async function POST(req: Request) {
       currentSessionId = session.id;
     }
 
-     await supabase.from('messages').insert({
-      session_id: currentSessionId,
-      user_id: userId,
-      role: 'user',
-      content: userPrompt || "请求生成图片",
-      image_url: productImageUrl // 记录用户传的主图
-    });
+    if (!isRegenerate) {
+      await supabase.from('messages').insert({
+        session_id: currentSessionId,
+        user_id: userId,
+        role: 'user',
+        content: userPrompt,
+        image_url: saveImageUrl
+      });
+    }
+
+    if (isRegenerate && deleteMessageId) {
+      await supabase.from('messages').delete().eq('id', deleteMessageId);
+    }
+
 
     const imageGenerationPrompt = `
     #role
@@ -95,8 +102,8 @@ export async function POST(req: Request) {
       prompt: imageGenerationPrompt,
       size: "1024x1024",
       response_format: "url",
-      image: [productImageUrl, styleImageUrl],
-      watermark: true,
+      image: [contextImageUrl, styleImageUrl],
+      watermark: false,
       sequential_image_generation: "disabled",
     //eslint-disable-next-line @typescript-eslint/no-explicit-any
     }as any);

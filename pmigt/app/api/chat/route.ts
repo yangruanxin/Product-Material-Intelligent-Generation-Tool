@@ -32,15 +32,14 @@ export async function POST(req: Request) {
 
 
     // 4. 解析 Body：去掉了 userId 的解构，因为上面已经拿到了
-    const { imageUrl, userPrompt, sessionId} = await req.json();
+    const { userPrompt, sessionId,saveImageUrl,contextImageUrl,isRegenerate,deleteMessageId} = await req.json();
 
     let currentSessionId = sessionId;
-
-    let finalImageUrl = imageUrl;
-    if (imageUrl && imageUrl.startsWith('http')) {
+    let finalImageUrl = contextImageUrl;
+    if (contextImageUrl&& contextImageUrl.startsWith('http')) {
       try {
-        console.log("正在下载图片并转换为 Base64...", imageUrl);
-        const imgRes = await fetch(imageUrl);
+        console.log("正在下载图片并转换为 Base64...", contextImageUrl);
+        const imgRes = await fetch(contextImageUrl);
         if (!imgRes.ok) throw new Error("图片下载失败");
         const arrayBuffer = await imgRes.arrayBuffer();
         const base64 = Buffer.from(arrayBuffer).toString('base64');
@@ -50,6 +49,7 @@ export async function POST(req: Request) {
         console.error("图片转 Base64 失败，降级使用原链接");
       }
     }
+
 
     // 如果前端没传 sessionId，说明是“新建会话”
     if (!currentSessionId) {
@@ -67,13 +67,19 @@ export async function POST(req: Request) {
     }
 
     // 存入用户消息
-    await supabase.from('messages').insert({
-      session_id: currentSessionId,
-      user_id: userId,
-      role: 'user',
-      content: userPrompt,
-      image_url: imageUrl
-    });
+    if (!isRegenerate) {
+      await supabase.from('messages').insert({
+        session_id: currentSessionId,
+        user_id: userId,
+        role: 'user',
+        content: userPrompt,
+        image_url: saveImageUrl
+      });
+    }
+
+    if (isRegenerate && deleteMessageId) {
+      await supabase.from('messages').delete().eq('id', deleteMessageId);
+    }
 
     const targetModel = process.env.VOLC_ENDPOINT_ID!; 
     const systemPrompt = `
@@ -121,7 +127,7 @@ export async function POST(req: Request) {
         },
       ],
       temperature: 0.5,
-      stream: true, // 开启流
+      stream: true,
     });
 
     const stream = new ReadableStream({
@@ -131,7 +137,6 @@ export async function POST(req: Request) {
 
         try {
           for await (const chunk of response) {
-            // 获取当前的片段（一个字或几个字）
             const content = chunk.choices[0]?.delta?.content || "";
             
             if (content) {

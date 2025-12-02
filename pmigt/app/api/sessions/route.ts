@@ -3,14 +3,8 @@ import { createClient } from '@/utils/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(req: Request) {
+export async function GET() {
   try {
-    const cookieHeader = req.headers.get('cookie');
-    console.log("---------------------------------------------------");
-    console.log("【调试】后端收到的 Cookie 长度:", cookieHeader?.length || 0);
-    console.log("【调试】后端收到的 Cookie 内容片段:", cookieHeader?.slice(0, 50) + "...");
-    console.log("---------------------------------------------------");
-
     const supabase = await createClient();
 
     // 1. 获取当前登录用户

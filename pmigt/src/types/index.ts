@@ -5,6 +5,7 @@ export interface Message {
   role: 'user' | 'assistant';
   content: string;        // 数据库里存的是字符串
   image_url: string | null; // 允许为空，且使用 snake_case
+  video_url: string | null;
   session_id: string;
   user_id: string;
 }
