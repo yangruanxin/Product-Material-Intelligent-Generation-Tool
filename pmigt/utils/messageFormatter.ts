@@ -1,3 +1,5 @@
+import { AIContent } from "@/src/types";
+
 // AI结构化回复的格式
 interface AIMarketingResponse {
     title: string;
@@ -29,5 +31,28 @@ export const formatAIMarketingText = (data: AIMarketingResponse): string => {
     `;
 
     // 使用 trim() 移除模板字符串开头和结尾的空行
+    return responseText.trim();
+};
+
+export const formatPartialAIMarketingText = (data: AIContent): string => {
+    // 渲染框架，如果字段存在就显示，否则显示加载指示或空
+    const title = data.title || '生成中...';
+    
+    // 如果 selling_points 是数组且有内容，则格式化；否则显示加载
+    const sellingPointsText = Array.isArray(data.selling_points) && data.selling_points.length > 0
+        ? data.selling_points.map((p, i) => `${i + 1}. ${p || '...'}`).join('\n')
+        : '卖点正在生成中...';
+        
+    const atmosphere = data.atmosphere || '生成中...';
+
+    const responseText = `
+        素材生成成功！
+
+        标题：${title}
+        卖点：
+        ${sellingPointsText}
+        氛围：${atmosphere}
+    `;
+
     return responseText.trim();
 };

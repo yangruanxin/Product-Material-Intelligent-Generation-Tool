@@ -2,7 +2,7 @@
 import React from 'react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Send, Upload, X, Loader2,Image } from "lucide-react";
+import { Send, Upload, X, Loader2,Image, Video } from "lucide-react";
 
 interface ChatInputAreaProps {
     // 状态
@@ -16,6 +16,7 @@ interface ChatInputAreaProps {
     uploadError: string | null;
     isDragging: boolean;
     isImageGenerationMode: boolean;//是否需要生成主图氛围
+    isVideoGenerationMode: boolean;//是否需要生成讲解视频
     
     // Handlers
     setInput: (value: string) => void;
@@ -27,6 +28,7 @@ interface ChatInputAreaProps {
     handleDrop: (e: React.DragEvent) => void;
     clearFile: () => void;
     toggleImageGenerationMode: () => void;
+    toggleVideoGenerationMode: () => void;
     
     // Refs
     fileInputRef: React.RefObject<HTMLInputElement|null>;
@@ -37,7 +39,8 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = (props) => {
         input, isLoading, isUploading, uploadedFile, filePreviewUrl, currentSessionImageUrl, 
         uploadProgress, uploadError, isDragging, setInput, handleSend, 
         handleFileChange, handleKeyDown, handleDragOver, handleDragLeave, handleDrop, clearFile, 
-        isImageGenerationMode,toggleImageGenerationMode,
+        isImageGenerationMode, toggleImageGenerationMode,
+        isVideoGenerationMode,toggleVideoGenerationMode,
         fileInputRef 
     } = props;
     
@@ -121,6 +124,7 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = (props) => {
                     className="hidden"
                 />
 
+                {/* 主图氛围生成按钮 */}
                 <Button
                     onClick={toggleImageGenerationMode}
                     variant="outline"
@@ -136,6 +140,22 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = (props) => {
                     <Image size={20} />
                 </Button>
                 
+                {/* 生成讲解视频按钮 */}
+                <Button
+                    onClick={toggleVideoGenerationMode}
+                    variant="outline"
+                    size="icon"
+                    disabled={isUploading || isLoading}
+                    title="基于当前提示词和参考图生成商品讲解视频"
+                    className={`h-12 w-12 rounded-full transition-all duration-300 ${
+                        isVideoGenerationMode 
+                            ? "bg-indigo-500 text-white border-indigo-500 hover:bg-indigo-600" 
+                            : "border-gray-300 text-gray-600 hover:text-gray-800"
+                    }`}
+                >
+                    <Video size={20} />
+                </Button>
+
                 {/* 上传按钮 */}
                 <Button
                     onClick={() => fileInputRef.current?.click()}

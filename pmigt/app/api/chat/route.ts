@@ -137,6 +137,7 @@ export async function POST(req: Request) {
 
         try {
           for await (const chunk of response) {
+
             const content = chunk.choices[0]?.delta?.content || "";
             
             if (content) {
