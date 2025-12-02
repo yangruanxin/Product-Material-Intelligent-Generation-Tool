@@ -32,6 +32,9 @@ export default function HomePage() {
 
   // 是否需要生成主图氛围
   const [isImageGenerationMode, setIsImageGenerationMode] = useState(false);
+
+  // 是否需要生成讲解视频
+  const [isVideoGenerationMode, setIsVideoGenerationMode] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -200,6 +203,11 @@ export default function HomePage() {
   // 处理图片生成模式切换
   const toggleImageGenerationMode = useCallback(() => {
     setIsImageGenerationMode(prev => !prev);
+  }, []);
+
+  // 处理视频生成模式切换
+  const toggleVideoGenerationMode = useCallback(() => {
+    setIsVideoGenerationMode(prev => !prev);
   }, []);
 
   // 调用图片生成API
@@ -411,6 +419,8 @@ export default function HomePage() {
             isDragging={isDragging}
             isImageGenerationMode={isImageGenerationMode}
             toggleImageGenerationMode={toggleImageGenerationMode}
+            isVideoGenerationMode={isVideoGenerationMode}
+            toggleVideoGenerationMode={toggleVideoGenerationMode}
             
             // Handlers
             setInput={setInput}
