@@ -589,15 +589,15 @@ export default function HomePage() {
   };
 
   return (
-      <ChatLayout 
-        sessions={sessions}
-        currentUserName="User" 
-        onSessionChange={handleSessionChange}
-        onNewSession={handleNewSession}
-        activeSessionId={activeSessionId}
+    <ChatLayout 
+      sessions={sessions}
+      currentUserName="User" 
+      onSessionChange={handleSessionChange}
+      onNewSession={handleNewSession}
+      activeSessionId={activeSessionId}
         >
         {/* 聊天消息列表 */}
-      <ChatMessageList messages={messages} isHistoryLoading={isHistoryLoading}/>
+      <ChatMessageList messages={messages} isHistoryLoading={isHistoryLoading} />
 
         {/* 输入和上传区域 */}
         <ChatInputArea

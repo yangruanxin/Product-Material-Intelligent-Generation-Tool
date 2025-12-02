@@ -123,14 +123,19 @@ export const useSessionManager = (
 
     // 会话切换处理
     const handleSessionChange = useCallback((id: string) => {
+        if (id === activeSessionId) {
+            // 如果点击的是当前会话，不执行重置操作
+            console.log("点击的仍是当前会话，返回")
+            return; // 立即返回，不进行任何状态修改。
+        }
         setActiveSessionId(id);
         setSessionError(null);
         // 通知组件：执行内容状态重置（在加载历史消息前先清空旧内容）
         onSessionContentReset();
         console.log(`Hook: 切换到会话: ${id}`);
-    }, [onSessionContentReset]);
+    }, [onSessionContentReset,activeSessionId]);
 
-    // 外部调用：用于 handleSend 成功创建后端 session 后，更新前端列表
+    // 用于 handleSend 成功创建后端 session 后，更新前端列表
     const addSession = useCallback((newSession: UISession) => {
         setSessions(prev => {
             // 确保不重复添加，并放在列表最前面

@@ -15,13 +15,6 @@ export const UserMessageCard: React.FC<UserMessageCardProps> = ({ message }) => 
     // 跟踪图片是否加载完成的状态
     const [imageLoaded, setImageLoaded] = useState(false);
 
-    // 骨架屏/加载指示器组件
-    const ImageSkeleton = () => (
-        <div className="w-full h-40 bg-gray-700 rounded-lg animate-pulse flex items-center justify-center text-gray-500 text-xs">
-            图片正在加载...
-        </div>
-    );
-
     return (
         <div className="flex w-full flex-col items-end gap-2">
 
@@ -41,8 +34,6 @@ export const UserMessageCard: React.FC<UserMessageCardProps> = ({ message }) => 
             {/* 用户发送的图片（若存在）*/}
             {imageUrl && (
                 <div className="inline-block max-w-[60%] rounded-xl overflow-hidden shadow">
-                    {!imageLoaded && <ImageSkeleton />}
-
                     <img
                         src={imageUrl}
                         alt="用户图片"
