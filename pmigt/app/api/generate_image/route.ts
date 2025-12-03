@@ -92,15 +92,10 @@ export async function POST(req: Request) {
     ${userPrompt}
     `;
 
-    console.log("--------------------------------");
-    console.log("【调试】最终发送给 AI 的 Prompt:");
-    console.log(imageGenerationPrompt);
-    console.log("--------------------------------");
-
     const imageResponse = await client.images.generate({
       model: process.env.VOLC_IMAGE_ENDPOINT_ID!, 
       prompt: imageGenerationPrompt,
-      size: "1024x1024",
+      size: "2048x2048",
       response_format: "url",
       image: [contextImageUrl, styleImageUrl],
       watermark: false,
