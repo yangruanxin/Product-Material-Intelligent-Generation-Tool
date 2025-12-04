@@ -109,18 +109,23 @@ export async function POST(req: Request) {
         throw new Error("模型未返回图片 URL");
     }
 
-    await supabase.from('messages').insert({
-      session_id: currentSessionId,
-      user_id: userId,
-      role: 'assistant',
-      content: JSON.stringify({ note: "图片已生成" }),
-      image_url: generatedImageUrl
-    });
+    const { data: assistantMessage} = await supabase
+      .from('messages')
+      .insert({
+        session_id: currentSessionId,
+        user_id: userId,
+        role: 'assistant',
+        content: JSON.stringify({ note: "图片已生成" }),
+        image_url: generatedImageUrl
+      })
+      .select('id')
+      .single();
 
     return NextResponse.json({ 
         success: true, 
         imageUrl: generatedImageUrl,
-        sessionId: currentSessionId
+        sessionId: currentSessionId,
+        messageId: assistantMessage?.id 
     });
 
   } catch (error: unknown) {

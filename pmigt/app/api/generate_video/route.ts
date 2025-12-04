@@ -134,18 +134,23 @@ export async function POST(req: Request) {
 
     console.log("视频生成成功:", videoUrl);
 
-    await supabase.from('messages').insert({
+     const { data: assistantMessage} = await supabase
+      .from('messages')
+      .insert({
       session_id: currentSessionId,
       user_id: userId,
       role: 'assistant',
       content: JSON.stringify({ note: "视频生成完毕" }),
       video_url: videoUrl 
-    });
+    })
+    .select('id')
+    .single();
 
     return NextResponse.json({
       success: true,
       videoUrl: videoUrl,
-      sessionId: currentSessionId
+      sessionId: currentSessionId,
+      messageId: assistantMessage?.id 
     });
 
   } catch (error: unknown) {

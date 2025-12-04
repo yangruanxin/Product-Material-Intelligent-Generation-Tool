@@ -81,6 +81,20 @@ export async function POST(req: Request) {
       await supabase.from('messages').delete().eq('id', deleteMessageId);
     }
 
+    const { data: placeholderMsg, error: placeholderError } = await supabase
+      .from('messages')
+      .insert({
+        session_id: currentSessionId,
+        user_id: userId,
+        role: 'assistant',
+        content: '', // 先存空字符串，或者是 "正在生成中..."
+      })
+      .select('id') // 只要 ID
+      .single();
+
+    if (placeholderError) throw new Error("创建消息占位失败");
+    const newMessageId = placeholderMsg.id; // ✅ 拿到了 Message ID
+
     const targetModel = process.env.VOLC_ENDPOINT_ID!; 
     const systemPrompt = `
     你是一位拥有10年经验的资深电商运营专家，擅长爆款文案策划、SEO关键词优化及用户消费心理学。
@@ -165,13 +179,14 @@ export async function POST(req: Request) {
                 ? JSON.stringify(parsedData) 
                 : accumulatedContent;
 
-            await supabase.from('messages').insert({
-              session_id: currentSessionId,
-              user_id: userId,
-              role: 'assistant',
-              content: finalContentToSave, 
-            });
-            console.log("数据库入库完成 ✅");
+            await supabase
+              .from('messages')
+              .update({
+                content: finalContentToSave
+              })
+              .eq('id', newMessageId); // 使用之前拿到的 ID
+            
+            console.log(`数据库更新完成 ✅ (ID: ${newMessageId})`);
           } catch (dbError) {
              console.error("数据库存入失败:", dbError);
           }
@@ -185,6 +200,7 @@ export async function POST(req: Request) {
       headers: {
         'Content-Type': 'text/plain; charset=utf-8',
         'X-Session-Id': currentSessionId, 
+        'X-Message-Id': newMessageId,
       },
     });
 
