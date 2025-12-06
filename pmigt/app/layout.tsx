@@ -1,9 +1,18 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+<<<<<<< Updated upstream
 // 1. 引入刚才创建的 AuthProvider 组件
 // 请确保路径正确，如果你的文件在 components/AuthProvider.tsx
 import AuthProvider from "@/components/ui/AuthProvider"; 
+=======
+// AuthProvider 组件
+import { AuthProvider } from "@/components/user/AuthProvider"; 
+// 侧边导航栏
+import { Sidebar } from '@/components/Sidebar';
+import { Toaster } from "sonner";
+import { UserProvider } from "@/components/user/UserProvider";
+>>>>>>> Stashed changes
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -31,7 +40,21 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <AuthProvider>
+<<<<<<< Updated upstream
           {children}
+=======
+          <UserProvider>
+            <Sidebar />
+            <div className="ml-20 min-h-screen bg-[#f0f2f5]"> 
+                {children}
+            </div>
+            {/* 渲染警告组件 */}
+            <Toaster 
+                position="top-right" // 右上角警告
+                richColors 
+            />
+          </UserProvider>
+>>>>>>> Stashed changes
         </AuthProvider>
       </body>
     </html>
