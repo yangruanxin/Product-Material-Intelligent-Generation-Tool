@@ -6,7 +6,7 @@ import AI_avatar from './chat/AI_avatar';
 const navItems = [
     { name: '灵感', href: '/home', icon: Lightbulb },
     { name: '生成', href: '/generate', icon: Aperture }, 
-    { name: '资产库', href: '/assets', icon: Folder },
+    { name: '资料库', href: '/library', icon: Folder },
 ];
 
 export function Sidebar() {

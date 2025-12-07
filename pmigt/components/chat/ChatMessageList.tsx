@@ -4,7 +4,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { UIMessage } from '@/src/types/index';
 import { AIMessageCard } from './AIMessageCard';
 import { UserMessageCard } from './UserMessageCard';
-import { WelcomeMessage } from './WelcomeMessage';
 
 interface ChatMessageListProps {
     messages: UIMessage[];
