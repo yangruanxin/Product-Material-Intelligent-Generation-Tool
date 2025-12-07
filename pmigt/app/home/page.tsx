@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 
 import { ModelId,getModelsByMode, getDefaultModelIdByMode } from '@/src/types/model';
 import { ModelSelector } from '@/components/ModelSelector';
+import { useInitialSessionLoader } from '@/hooks/useInitialSessionLoader';
 
 // 模拟素材数据，添加标题和高度变化
 const demoInspiration = [
@@ -52,6 +53,7 @@ const InspirationCard: React.FC<InspirationCardProps> = ({ src, title, height })
 
 
 export default function HomePage() {
+    useInitialSessionLoader();
     const router = useRouter();
     const [prompt, setPrompt] = useState('');
 

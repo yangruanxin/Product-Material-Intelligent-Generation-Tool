@@ -213,53 +213,16 @@ export default function GeneratePage() {
     },[activeSessionId, loadSessionMessages, setMessages,messages.length,setLastAIMessageId,setLastUserMessage,setCurrentSessionImageUrl])
 
     // AI占位消息，用于加载动画，后续删除
-    const placeholderIndexRef = useRef<number | null>(null);
+    const placeholderIndexRef = useRef<string | null>(null);
 
-    // 用于实时更新 UI 中占位消息的函数
-    const updatePlaceholderMessageContent = useCallback((newContent: string, isFinal: boolean = false, finalMediaUrl?: string) => {
-        setMessages(prev => {
-            const newList = [...prev];
-            const index = placeholderIndexRef.current;
-            console.log("进入实时更新AI占位消息函数",index,newList)
-            
-            if (index !== null && index < newList.length) {
-                const currentMessage = newList[index];
-                
-                // 默认的 loading 状态处理 (如果不是最终结果，loading 保持不变)
-                let newLoading = currentMessage.loading;
-                if (isFinal) {
-                    newLoading = false; // 最终结果，结束加载
-                }
-
-                // 媒体 URL 赋值逻辑
-                let newImageUrl = currentMessage.imageUrl;
-                let newVideoUrl = currentMessage.videoUrl;
-                
-                if (isFinal && finalMediaUrl) {
-                    // 根据占位消息的类型来判断赋值给哪个 URL 属性
-                    if (currentMessage.isImageTask) {
-                        newImageUrl = finalMediaUrl;
-                    } else if (currentMessage.isVideoTask) {
-                        newVideoUrl = finalMediaUrl;
-                    }
-                }
-
-                // 更新消息对象
-                newList[index] = { 
-                    ...currentMessage, 
-                    text: newContent, 
-                    loading: newLoading, // 更新 loading 状态
-                    imageUrl: newImageUrl, // 更新图片 URL
-                    videoUrl: newVideoUrl, // 更新视频 URL
-                };
-                console.log("AI消息替换成功:", newList[index]);
-                
-                placeholderIndexRef.current = null;
-            }
-            
-            return newList;
-        });
-    }, []);
+    // 生成随机ID
+    function generatePlaceholderId(): string {
+        if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+            return crypto.randomUUID();
+        }
+        // 兼容旧浏览器/环境的备用方案：时间戳 + 随机数
+        return `temp-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    }
 
     // 通用发送请求
     const handleSend = useCallback(async (
@@ -289,7 +252,10 @@ export default function GeneratePage() {
         };
 
         // AI占位消息，用于加载特效，流式输出时会实时替换文本
+        const tempId = generatePlaceholderId();
+        placeholderIndexRef.current = tempId;
         const aiPlaceholder: UIMessage = {
+            id:tempId,
             sender: 'ai',
             loading: true,
             text: '...', 
@@ -300,7 +266,6 @@ export default function GeneratePage() {
         // 及时展示用户消息和AI占位消息
         setMessages(prev => {
             const newList = [...prev, userMessage, aiPlaceholder];
-            placeholderIndexRef.current = newList.length - 1; 
             return newList;
         });
 
@@ -350,7 +315,7 @@ export default function GeneratePage() {
             });
             console.log("请求聊天:", response);
             const newSessionId = response.headers.get("X-Session-Id");
-                console.log("activeSessionId:", activeSessionId, "newSessionId:", newSessionId);
+            console.log("activeSessionId:", activeSessionId, "newSessionId:", newSessionId);
             const result = await response.json();
             console.log("AI返回内容:", result);
             if (!response.ok) {
@@ -371,6 +336,7 @@ export default function GeneratePage() {
                 }
             throw new Error(`API request failed: ${response.status} ${response.statusText}`);
         }
+            const lastMessageId = result.messageId;
 
             // 解析结果
             if (isImageGenerationMode) {
@@ -398,7 +364,7 @@ export default function GeneratePage() {
                 } catch (e) {
                     console.error("JSON解析失败:", result.content);
                     finalResponseText = "AI 返回内容格式错误";
-                    updatePlaceholderMessageContent(finalResponseText, true);
+                    replacePlaceholderWithFinalMessage(finalResponseText,generatedMediaUrl );
                     return;
                 }
                 finalResponseText = formatAIMarketingText(finalParsedData);
@@ -414,11 +380,67 @@ export default function GeneratePage() {
                 addSession(newSession);
             }
             console.log("生成的媒体url:", generatedMediaUrl)
-            console.log("查看占位消息",placeholderIndexRef.current)
-            updatePlaceholderMessageContent(finalResponseText, true, generatedMediaUrl);
+            console.log("查看占位消息", placeholderIndexRef.current)
+            // 替换列表中的最后一条 AI 消息（找不到则追加）
+            setMessages(prev => {
+                let replaced = false; // 追踪是否发生替换
+
+                //  尝试替换：遍历并精准匹配 ID
+                const newList = prev.map(msg => {
+                    if (msg.id === tempId) {
+                        replaced = true; // 标记已替换
+                        
+                        // 返回更新后的消息对象 (替换逻辑)
+                        return { 
+                            ...msg, 
+                            id: lastMessageId || tempId,
+                            text: finalResponseText,
+                            loading: false,
+                            imageUrl: result.imageUrl, 
+                            videoUrl: result.videoUrl,
+                        };
+                    }
+                    return msg;
+                });
+
+                // 如果替换失败，则追加新消息
+                if (!replaced) {
+                    console.warn(`找不到 ID 为 ${tempId} 的占位消息，将作为新消息追加。`);
+                    
+                    // 构造要追加的新消息对象
+                    const finalNewMessage :UIMessage = {
+                        id: lastMessageId ,
+                        sender: 'ai',
+                        text: finalResponseText,
+                        loading: false,
+                        imageUrl: result.imageUrl,
+                        videoUrl: result.videoUrl,
+                    };
+                    
+                    // 追加新消息到列表末尾
+                    return [...newList, finalNewMessage];
+                }
+
+                // 如果成功替换，返回替换后的列表
+                return newList;
+            });
+            console.log("替换完后消息列表为：", messages);
         } catch (error) {
             console.error("API调用失败:", error);
-            
+            // 错误处理：使用 tempId 替换占位符为错误提示
+            const errorText = error instanceof Error ? `请求失败: ${error.message}` : "操作失败，请稍后再试";
+            setMessages(prev => {
+                return prev.map(msg => {
+                    if (msg.id === tempId) {
+                        return { 
+                            ...msg, 
+                            loading: false, 
+                            text: errorText 
+                        };
+                    }
+                    return msg;
+                });
+            });
             toast.error("操作失败", { description: "请稍后再试" });
         } finally {
             setIsLoading(false);
@@ -426,7 +448,7 @@ export default function GeneratePage() {
         }
 
     }, [input,  currentSessionImageUrl,  isImageFreshlyUploaded,selectedModelId,
-        updatePlaceholderMessageContent, activeSessionId, isImageGenerationMode, userId, addSession
+     activeSessionId, isImageGenerationMode, userId, addSession
     ]);
 
     const autoSentRef = useRef(false);
@@ -458,6 +480,13 @@ export default function GeneratePage() {
 
     // 处理用户点击后媒体区展示新图
     const handleMessageMediaClick = useCallback((url: string, type: 'image' | 'video') => {
+        const isAgentMode = currentMode === "agent";
+        if (isLoading&&!isAgentMode) {
+            toast.warning("生成中", {
+                description: "AI 正在生成中，请稍后再预览其他素材",
+            });
+            return; 
+        }
         setPreviewMediaUrl(url);
         setPreviewMediaType(type);
     }, []);
@@ -466,9 +495,11 @@ export default function GeneratePage() {
         <ChatLayout
             rightPanel={
                 <MediaPreviewPanel
+                    key={activeSessionId}
                     isLoading={isLoading}
                     imageUrl={previewMediaType === 'image' ? previewMediaUrl : null}
                     videoUrl={previewMediaType === 'video' ? previewMediaUrl : null}
+                    currentMode={currentMode}
 
                     ModelSelectorComponent={
                         <div className="p-4 pt-0 w-full flex justify-center">
