@@ -35,7 +35,7 @@ async function imageUrlToBase64(url: string): Promise<string> {
 //  LLM 生成口播文案
 async function generateScriptWithLLM(imageUrl: string, userPrompt: string, endpointId: string): Promise<string> {
   console.log("【LLM】正在分析图片并生成口播文案...");
-   const finalImage = await imageUrlToBase64(imageUrl);
+  const finalImage = await imageUrlToBase64(imageUrl);
 
   const systemPrompt = `
   你是一个专业的短视频脚本策划师。

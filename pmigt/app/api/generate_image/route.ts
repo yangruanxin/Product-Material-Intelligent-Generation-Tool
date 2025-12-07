@@ -2,6 +2,7 @@
 import { OpenAI } from 'openai';
 import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server'; 
+import sharp from 'sharp';
 
 const client = new OpenAI({
   apiKey: process.env.VOLC_API_KEY,
@@ -109,21 +110,85 @@ export async function POST(req: Request) {
         throw new Error("模型未返回图片 URL");
     }
 
-    console.log("图片生成成功，正在转存至 Supabase...", tempImageUrl);
+    console.log("图片生成成功，正在下载并添加水印...", tempImageUrl);
 
+    // 1. 下载原始图片
     const fetchRes = await fetch(tempImageUrl);
     if (!fetchRes.ok) throw new Error("下载生成图片失败");
-    const imageArrayBuffer = await fetchRes.arrayBuffer();
-    const imageBuffer = Buffer.from(imageArrayBuffer);
+    const originalArrayBuffer = await fetchRes.arrayBuffer();
+    const originalBuffer = Buffer.from(originalArrayBuffer);
 
+    // 获取 Content-Type
     const contentType = fetchRes.headers.get('content-type') || 'image/jpeg';
     const extension = contentType.split('/')[1] || 'jpeg';
+
+    //使用 Sharp 添加水印 
+    let finalBuffer: Buffer;
+    
+    try {
+      // 定义水印文字
+      const watermarkText = "抖音电商前端训练营";
+      
+      // 读取原始图片元数据（获取宽高等）
+      const image = sharp(originalBuffer);
+      const metadata = await image.metadata();
+      const width = metadata.width || 2048;
+      const height = metadata.height || 2048;
+
+      // 计算字体大小和边距（响应式：根据图片宽度计算，这里设为宽度的 2.5%）
+      const fontSize = Math.floor(width * 0.025); 
+      const marginX = Math.floor(width * 0.03); // 右边距
+      const marginY = Math.floor(height * 0.03); // 下边距
+
+      // 创建 SVG 水印层
+      // 解释：
+      // 1. viewBox 和 width/height 匹配原图大小
+      // 2. text-shadow 用于在深色或浅色背景上都能看清文字（增加黑色阴影）
+      // 3. x, y 坐标配合 text-anchor="end" 实现右对齐
+      const svgWatermark = `
+        <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+          <style>
+            .watermark {
+              fill: rgba(255, 255, 255, 0.7); /* 白色，80%不透明度 */
+              font-size: ${fontSize}px;
+              font-family: sans-serif;
+              font-weight: bold;
+              text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.6); /* 黑色阴影提升对比度 */
+            }
+          </style>
+          <text 
+            x="${width - marginX}" 
+            y="${height - marginY}" 
+            text-anchor="end" 
+            class="watermark"
+          >${watermarkText}</text>
+        </svg>
+      `;
+
+      // 执行合成
+      finalBuffer = await image
+        .composite([
+          {
+            input: Buffer.from(svgWatermark),
+            top: 0,
+            left: 0,
+          },
+        ])
+        // 保持原格式输出（如果原图是 png 则输出 png，jpeg 则 jpeg）
+        .toBuffer();
+        
+       console.log("水印添加成功");
+
+    } catch (processError) {
+       console.error("水印添加失败，将使用原图上传:", processError);
+       finalBuffer = originalBuffer; // 如果处理失败，降级使用原图，防止流程中断
+    }
 
     const fileName = `images/${userId}/${Date.now()}_generated.${extension}`;
 
     const { error: uploadError } = await supabase.storage
       .from('generated_files') 
-      .upload(fileName, imageBuffer, {
+      .upload(fileName, finalBuffer, { 
         contentType: contentType,
         upsert: false
     });
