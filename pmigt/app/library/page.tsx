@@ -230,11 +230,23 @@ export default function LibraryPage() {
                       muted 
                       loop 
                       playsInline
-                      onMouseOver={e => e.currentTarget.play()}
-                      onMouseOut={e => {
-                          e.currentTarget.pause();
-                          e.currentTarget.currentTime = 0;
-                      }}
+                      onMouseOver={e => {
+                      const video = e.currentTarget;
+                      // play() 返回一个 Promise
+                      const playPromise = video.play();
+                    
+                      if (playPromise !== undefined) {
+                          playPromise.catch(error => {
+                          console.error("报错详情:", error); 
+                          });
+                      }
+                    }}
+                    // 🟢 修改这里：更安全的暂停逻辑
+                    onMouseOut={e => {
+                        const video = e.currentTarget;
+                        video.pause();
+                        video.currentTime = 0; // 重置进度
+                    }}
                     />
                     </>
                   ) : (
