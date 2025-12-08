@@ -38,7 +38,6 @@ export const useSessionManager = (
     const activeSessionId = useGenStore(state => state.activeSessionId);
     const setActiveSessionId = useGenStore(state => state.setActiveSessionId);
     const isSessionLoading = useGenStore(state => state.isSessionLoading);
-    const setIsSessionLoading = useGenStore(state => state.setIsSessionLoading);
     const sessionError = useGenStore(state => state.sessionError);
     const setSessionError = useGenStore(state => state.setSessionError);
 

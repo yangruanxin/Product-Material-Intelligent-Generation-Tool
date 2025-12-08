@@ -72,7 +72,8 @@ export default function GeneratePage() {
     const setLastAIMessageId = useGenStore(state => state.setLastAIMessageId);
 
     // 用于右侧媒体预览栏
-    const [isLoading, setIsLoading] = useState(false);
+    const isLoading = useGenStore(state => state.isLoading);
+    const setIsLoading = useGenStore(state => state.setIsLoading);
 
     // 用于显示用户点击消息中图片的 URL 和类型
     const [previewMediaUrl, setPreviewMediaUrl] = useState<string | null>(null);
@@ -82,6 +83,7 @@ export default function GeneratePage() {
     const [isImageFreshlyUploaded, setIsImageFreshlyUploaded] = useState(false);
     // 判断生成模式
     const isImageGenerationMode = useMemo(() => currentMode === "image", [currentMode]);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const isVideoGenerationMode = useMemo(() => currentMode === "video", [currentMode]);
 
     // 本地状态 跟踪是否已完成初始化/API调用
@@ -246,6 +248,12 @@ export default function GeneratePage() {
         // 拦截请求
         if (!finalImage) {
             toast.warning("缺少素材", { description: "当前会话需要一张商品参考图，请先上传一张商品图片。" });
+            return;
+        }
+
+        // 缺少提示词
+        if (!trimmedInput) {
+            toast.warning("缺少文案", { description: "请输入您想让 AI 生成的提示词或描述。" });
             return;
         }
 

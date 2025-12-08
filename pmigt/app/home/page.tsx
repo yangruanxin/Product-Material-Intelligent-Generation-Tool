@@ -3,10 +3,10 @@
 import React, { useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
-import { Image, Send } from 'lucide-react'; 
+import { Send } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 import { ModeTabs, ModeType } from '@/components/ModeTabs';
-
 import { FloatingFileUploadBox } from '@/components/FloatingFileUploadBox';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
@@ -17,238 +17,206 @@ import { useInitialSessionLoader } from '@/hooks/useInitialSessionLoader';
 import { useGenStore } from '@/src/store/useGenStore';
 import InspirationMasonry from '@/components/InspirationMasonry';
 
-// 模拟素材数据，添加标题和高度变化
-const demoInspiration = [
-    { src: "/demo/demo1.jpg", title: "日落街头赛博朋克", height: "h-96" },
-    { src: "/demo/demo2.jpg", title: "可爱的兔子3D动画", height: "h-72" },
-    { src: "/demo/demo3.jpg", title: "未来主义城市景观", height: "h-80" },
-    { src: "/demo/demo4.jpg", title: "复古游戏角色设计", height: "h-64" },
-    { src: "/demo/demo5.jpg", title: "水彩风格的肖像画", height: "h-96" },
-    { src: "/demo/demo6.jpg", title: "静谧的森林小屋", height: "h-72" },
-    { src: "/demo/demo7.jpg", title: "抽象几何艺术", height: "h-80" },
-    { src: "/demo/demo8.jpg", title: "科幻机甲战士", height: "h-64" },
-];
-
-
-// 瀑布流卡片组件
-interface InspirationCardProps {
-    src: string;
-    title: string;
-    height: string;
-}
-
-const InspirationCard: React.FC<InspirationCardProps> = ({ src, title, height }) => (
-    <div className="break-inside-avoid mb-6 p-1 bg-white rounded-xl shadow-lg hover:shadow-2xl transition duration-300 cursor-pointer overflow-hidden">
-        <div className={`w-full ${height} bg-gray-200 rounded-lg overflow-hidden`}>
-            <img 
-                src={src} 
-                alt={title}
-                className="w-full h-full object-cover transition duration-500 ease-in-out hover:scale-[1.03]"
-            />
-        </div>
-        <div className="p-3">
-            <h3 className="text-md font-semibold text-gray-800 truncate">{title}</h3>
-            <p className="text-xs text-gray-500 mt-1">@即梦用户</p>
-        </div>
-    </div>
-);
-
-
 export default function HomePage() {
-    useInitialSessionLoader();
-    const router = useRouter();
+  useInitialSessionLoader();
+  const router = useRouter();
 
-    // 导入状态管理里的状态什么的
-    const prompt = useGenStore(state => state.homePrompt);
-    const currentMode = useGenStore(state => state.homeMode);
-    const selectedModelId = useGenStore(state => state.homeModelId);
-    const finalImageUrl = useGenStore(state => state.homeImageUrl);
-    const isHydrated = useGenStore(state => state.isHydrated);
+  // ===== 原有逻辑（未改） =====
+  const prompt = useGenStore(state => state.homePrompt);
+  const currentMode = useGenStore(state => state.homeMode);
+  const selectedModelId = useGenStore(state => state.homeModelId);
+  const finalImageUrl = useGenStore(state => state.homeImageUrl);
+  const isHydrated = useGenStore(state => state.isHydrated);
 
-    const setPrompt = useGenStore(state => state.setHomePrompt);
-    const setCurrentMode = useGenStore(state => state.setHomeMode); 
-    const setSelectedModelId = useGenStore(state => state.setHomeModelId);
-    const setFinalImageUrl = useGenStore(state => state.setHomeImageUrl);
+  const setPrompt = useGenStore(state => state.setHomePrompt);
+  const setCurrentMode = useGenStore(state => state.setHomeMode);
+  const setSelectedModelId = useGenStore(state => state.setHomeModelId);
+  const setFinalImageUrl = useGenStore(state => state.setHomeImageUrl);
 
-    const setActiveSessionId = useGenStore(state => state.setActiveSessionId);
-    const setMessages = useGenStore(state => state.setMessages);
-    const setShouldLaunchNewSession = useGenStore(state => state.setShouldLaunchNewSession);
+  const setActiveSessionId = useGenStore(state => state.setActiveSessionId);
+  const setMessages = useGenStore(state => state.setMessages);
+  const setShouldLaunchNewSession = useGenStore(state => state.setShouldLaunchNewSession);
 
-    // 用于接收上传成功的图片url
-    const handleImageUpdate = useCallback((url: string | null) => {
-        setFinalImageUrl(url);
-    }, [setFinalImageUrl]);
+  const handleImageUpdate = useCallback((url: string | null) => {
+    setFinalImageUrl(url);
+  }, [setFinalImageUrl]);
 
+  const handleModeChange = useCallback((mode: ModeType) => {
+    setCurrentMode(mode);
+    console.log("切换到模式:", currentMode,"当前模型为：",selectedModelId);
+  }, []);
 
-    // 处理模式切换
-    const handleModeChange = useCallback((mode: ModeType) => {
-        setCurrentMode(mode);
-        console.log("切换到模式:", currentMode,"当前模型为：",selectedModelId);
-    }, []);
-
-    // 渲染不同模式下的输出提示
-    const getPlaceholder = () => {
-        switch (currentMode) {
-            case 'agent':
-                return "请先上传商品参考图,描述你想要的商品标题和文案内容";
-            case 'image':
-                return "请先上传商品参考图,描述你想要的商品主图氛围";
-            case 'video':
-                return "请先上传商品参考图,描述你想要的商品讲解视频";
-            default:
-                return "输入你的创意描述，让AI Agent帮你完成任务...";
-        }
+  const getPlaceholder = () => {
+    switch (currentMode) {
+      case 'agent':
+        return "请先上传商品参考图,描述你想要的商品标题和文案内容";
+      case 'image':
+        return "请先上传商品参考图,描述你想要的商品主图氛围";
+      case 'video':
+        return "请先上传商品参考图,描述你想要的商品讲解视频";
+      default:
+        return "输入你的创意描述，让AI Agent帮你完成任务...";
     }
+  }
 
-    // 获取当前模式可选择的模型
-    const models = getModelsByMode(currentMode);
+  const models = getModelsByMode(currentMode);
 
-    const submit = () => {
-        const trimmedPrompt = prompt.trim();
-        const selectedModel = models.find(m => m.id === selectedModelId);//找到当前选择的模型
-        // 如果模型不存在或 endpoint 不存在，则警告
-        if (!selectedModel || !selectedModel.endpoint) {
-             toast.error("模型配置错误", { description: "请选择一个有效的模型或检查环境变量配置。" });
-             return;
-        }
-
-        // 若无提示词或参考图,不能点击发送
-        if (!trimmedPrompt && !finalImageUrl) {
-            // 两个都缺少
-            toast.warning("内容不完整", { description: "请输入文案并上传一张参考图片。" });
-            return;
-        }
-
-        if (!trimmedPrompt) {
-            // 缺少提示词
-            toast.warning("缺少文案", { description: "请输入您想让 AI 生成的提示词或描述。" });
-            return;
-        }
-
-        if (!finalImageUrl) {
-            // 缺少参考图
-            toast.warning("缺少素材", { description: "请先上传一张商品参考图片。" });
-            return;
-        }
-
-        setActiveSessionId(null);
-        setMessages([]);
-        setShouldLaunchNewSession(true);
-        // 使用 Next.js 的路由跳转，传递 prompt
-        router.push('/generate');
-    };
-
-    // 水合状态的加载
-    if (!isHydrated) {
-        // 只有当 isHydrated 为 false 时，显示加载状态
-        return (
-            <div className="flex items-center justify-center min-h-screen">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-            </div>
-        );
+  const submit = () => {
+    const trimmedPrompt = prompt.trim();
+    const selectedModel = models.find(m => m.id === selectedModelId);
+    if (!selectedModel || !selectedModel.endpoint) {
+      toast.error("模型配置错误", { description: "请选择一个有效的模型或检查环境变量配置。" });
+      return;
     }
+    if (!trimmedPrompt && !finalImageUrl) {
+      toast.warning("内容不完整", { description: "请输入文案并上传一张参考图片。" });
+      return;
+    }
+    if (!trimmedPrompt) {
+      toast.warning("缺少文案", { description: "请输入您想让 AI 生成的提示词或描述。" });
+      return;
+    }
+    if (!finalImageUrl) {
+      toast.warning("缺少素材", { description: "请先上传一张商品参考图片。" });
+      return;
+    }
+    setActiveSessionId(null);
+    setMessages([]);
+    setShouldLaunchNewSession(true);
+    router.push('/generate');
+  };
 
+  if (!isHydrated) {
     return (
-        // 整个页面的背景：更柔和的渐变
-        <div className="min-h-screen w-full bg-[#fcfdff] relative">
-            
-            {/* 顶部的模糊背景效果，增加层次感 */}
-            <div className="absolute top-0 w-full h-96 bg-blue-50/50 blur-3xl opacity-50 z-0"></div>
-            
-
-                {/* Hero 输入框区 - 整体背景和定位优化 */}
-                <div className="w-full flex flex-col items-center 
-                                pt-24 pb-16 lg:pt-32 lg:pb-20 
-                                bg-gradient-to-b from-gray-50/50 to-white 
-                                relative z-10"
-                >
-                    {/* 标题*/}
-                    <h1 className="text-5xl font-extrabold mb-4 tracking-tight 
-                                bg-clip-text text-transparent 
-                                bg-gradient-to-r from-blue-600 to-purple-600 
-                                drop-shadow-lg lg:text-6xl"
-                    >
-                        AI 创作，释放无限可能
-                    </h1>
-                    <p className="text-gray-500 mb-10 text-lg">
-                        灵感来了？一句话开始你的创作。
-                    </p>
-                    
-                    {/* 模式选择器 */}
-                    <div className="mb-4">
-                        <ModeTabs currentMode={currentMode} setMode={handleModeChange} />
-                    </div>
-
-                    {/* 输入区域容器：增加立体感，略微内陷 */}
-                    <div className="w-full max-w-4xl p-2 bg-white rounded-3xl 
-                                    shadow-[0_10px_30px_rgba(45,91,255,0.1)] border border-gray-100 
-                                    transition duration-300 hover:shadow-[0_15px_40px_rgba(45,91,255,0.2)]"
-                    >
-                        
-                    {/* 主要输入行 */}
-                    <div className="flex gap-4 items-stretch">
-                        {/* 图片上传区 */}
-                        <div className="aspect-square w-32 h-40 min-w-[128px] rounded-2xl ">
-                            <FloatingFileUploadBox
-                                onImageUploaded={handleImageUpdate}
-                                initialImageUrl={finalImageUrl}
-                                size={140}
-                            />
-                        </div>
-                        <div className="relative flex-grow h-36">
-                            {/* 输入区 */}
-                            <Textarea
-                                placeholder={getPlaceholder()}
-                                className="w-full h-full text-lg rounded-2xl bg-white
-                                        border-none focus:outline-none focus:ring-0 
-                                        pl-4 pr-16 pt-4 pb-14 resize-none placeholder:text-gray-400
-                                         overflow-y-scroll scrollbar-hide"
-                                value={prompt}
-                                onChange={(e) => setPrompt(e.target.value)}
-                                onKeyDown={(e) => {
-                                    // Shift + Enter 换行
-                                    if (e.key === "Enter" && !e.shiftKey) {
-                                        e.preventDefault();
-                                        submit();
-                                    }
-                                }}
-                            />
-                            
-                            {/* 生成按钮：更强的渐变和悬停效果 */}
-                            <Button
-                                className="absolute bottom-3 right-3 bg-gradient-to-r from-[#ff004f] to-[#2d5bff] text-white h-12 w-12 p-0 rounded-full transition-opacity
-                                        transform hover:scale-[1.01]" // 增加微小放大动效
-                                onClick={submit}
-                            >
-                                <Send size={18} />
-                            </Button>
-                        </div>
-                    </div>
-                    
-                    {/* 底部功能和参数 Tag - 增加视觉区隔 */}
-                    <div className="flex justify-between items-center px-4 pt-3 mt-2 
-                                    border-t border-gray-100/70"
-                    >
-                        <ModelSelector 
-                            value={selectedModelId}
-                            onChange={setSelectedModelId}
-                            models={models} 
-                        />
-                        
-                        {/* 图片参考按钮 (用于提醒用户，但功能已由 FloatingBox 承担) */}
-                        <Button variant="ghost" className="text-sm text-gray-500 hover:text-blue-600">
-                            <Image className="w-4 h-4 mr-1" />
-                            图片参考
-                        </Button>
-                    </div>
-                </div>
-                    
-
-                {/* 瀑布流区 */}
-                <div className="py-10">
-                    <InspirationMasonry className="max-w-6xl" />
-                </div>
-            </div>
-        </div>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+      </div>
     );
+  }
+
+  return (
+    <div className="min-h-screen w-full relative overflow-hidden">
+      {/* ===== 背景层：柔光渐变 + 动态 Orbs（仅装饰） ===== */}
+      <div className="absolute inset-0 -z-10 bg-gradient-to-b from-[#f7faff] via-white to-[#f9fbff]" />
+      <div className="absolute -top-24 -left-24 w-[420px] h-[420px] rounded-full bg-fuchsia-300/40 blur-3xl animate-float-slow -z-10" />
+      <div className="absolute top-32 -right-32 w-[520px] h-[520px] rounded-full bg-blue-300/40 blur-3xl animate-float-slower -z-10" />
+      <div className="absolute bottom-0 left-1/3 w-[360px] h-[360px] rounded-full bg-cyan-300/40 blur-3xl animate-float-slow -z-10" />
+
+      {/* 原顶部柔光条增强 */}
+      <div className="absolute top-0 w-full h-96 bg-blue-50/50 blur-3xl opacity-50 -z-10" />
+
+      {/* Hero / 输入区 */}
+      <motion.div
+        className="w-full flex flex-col items-center pt-24 pb-16 lg:pt-32 lg:pb-20 relative z-10"
+        initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}
+      >
+        {/* 标题 */}
+        <motion.h1
+          className="text-5xl lg:text-6xl font-extrabold mb-4 tracking-tight
+                     bg-clip-text text-transparent 
+                     bg-gradient-to-r from-blue-600 via-violet-600 to-fuchsia-600 drop-shadow"
+          initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.05 }}
+        >
+          AI 创作，释放无限可能
+        </motion.h1>
+        <motion.p
+          className="text-gray-500 mb-10 text-lg"
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.45, delay: 0.1 }}
+        >
+          灵感来了？一句话开始你的创作。
+        </motion.p>
+
+        {/* 模式选择器（轻悬浮） */}
+        <motion.div
+          className="mb-4"
+          initial={{ opacity: 0, y: 6 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.4 }}
+        >
+          <ModeTabs currentMode={currentMode} setMode={handleModeChange} />
+        </motion.div>
+
+        {/* 输入卡片：玻璃拟态 + 发光边 + 悬浮阴影 */}
+        <motion.div
+          className="w-full max-w-4xl p-2 rounded-3xl
+                     bg-white/70 backdrop-blur-xl border border-white/60
+                     shadow-[0_12px_40px_rgba(45,91,255,0.12)]
+                     hover:shadow-[0_16px_48px_rgba(45,91,255,0.18)]
+                     transition"
+          initial={{ opacity: 0, y: 10, scale: 0.995 }}
+          whileInView={{ opacity: 1, y: 0, scale: 1 }}
+          viewport={{ once: true, amount: 0.2 }}
+          transition={{ duration: 0.45, delay: 0.12 }}
+        >
+          {/* 主要输入行 */}
+          <div className="flex gap-4 items-stretch">
+            {/* 图片上传区（保持逻辑不变，提升样式容器） */}
+            <div className="aspect-square w-32 h-40 min-w-[128px] rounded-2xl">
+              <FloatingFileUploadBox
+                onImageUploaded={handleImageUpdate}
+                initialImageUrl={finalImageUrl}
+                size={140}
+              />
+            </div>
+
+            {/* 文本输入 + 发光发送按钮 */}
+            <div className="relative flex-grow h-36">
+              <Textarea
+                placeholder={getPlaceholder()}
+                className="w-full h-full text-lg rounded-2xl bg-white/70
+                           border border-white/60 focus:outline-none focus:ring-2 focus:ring-indigo-400/40 
+                           pl-4 pr-16 pt-4 pb-14 resize-none placeholder:text-gray-400
+                           overflow-y-scroll scrollbar-hide"
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    submit();
+                  }
+                }}
+              />
+
+              <Button
+                className="absolute bottom-3 right-3 h-12 w-12 p-0 rounded-full text-white
+                           bg-gradient-to-r from-[#ff004f] via-[#b14bff] to-[#2d5bff]
+                           shadow-[0_10px_28px_rgba(45,91,255,0.35)]
+                           hover:shadow-[0_12px_32px_rgba(45,91,255,0.5)]
+                           transition-transform hover:scale-[1.05]"
+                onClick={submit}
+                aria-label="生成"
+                title="生成"
+              >
+                <Send size={18} />
+              </Button>
+            </div>
+          </div>
+
+          {/* 底部参数栏 */}
+          <div className="flex justify-between items-center px-4 pt-3 mt-2 border-t border-white/70">
+            <ModelSelector
+              value={selectedModelId}
+              onChange={setSelectedModelId}
+              models={models}
+            />
+            <div className="text-xs text-gray-400">按 Enter 快速提交 · Shift+Enter 换行</div>
+          </div>
+        </motion.div>
+
+        {/* 灵感区：标题淡入 + 更宽容器 */}
+        <motion.div
+          className="py-12 w-full"
+          initial={{ opacity: 0, y: 8 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.45, delay: 0.08 }}
+        >
+          <InspirationMasonry className="max-w-7xl" />
+        </motion.div>
+      </motion.div>
+
+      {/* 局部动画 Keyframes（背景 Orbs 漂浮） */}
+      <style>{`
+        @keyframes float-slow   { 0%{transform:translateY(0)} 50%{transform:translateY(-16px)} 100%{transform:translateY(0)} }
+        @keyframes float-slower { 0%{transform:translateY(0)} 50%{transform:translateY(-10px)} 100%{transform:translateY(0)} }
+        .animate-float-slow{ animation: float-slow 10s ease-in-out infinite; }
+        .animate-float-slower{ animation: float-slower 14s ease-in-out infinite; }
+      `}</style>
+    </div>
+  );
 }

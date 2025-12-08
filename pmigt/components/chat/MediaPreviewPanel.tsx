@@ -28,13 +28,11 @@ export const MediaPreviewPanel: React.FC<MediaPreviewPanelProps> = ({
   isLoading = false,
   imageUrl,
   videoUrl,
-  currentMode,
   title = "创作工作台",
   subtitle = "配置参考图并查看生成结果",
   ImageUploadComponent,
   ModelSelectorComponent,
 }) => {
-  const isAgentMode = currentMode === "agent";
   // 当前展示的是视频还是图片
   const hasVideo = !!videoUrl;
   const hasImage = !!imageUrl;
@@ -121,10 +119,10 @@ export const MediaPreviewPanel: React.FC<MediaPreviewPanelProps> = ({
                 <div className="w-full h-full flex items-center justify-center">
                     
                     {/* Scene A: Loading */}
-                    {isLoading && !isAgentMode&& (
+                    {isLoading && (
                         <div className="flex flex-col items-center gap-3 animate-pulse">
                             <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
-                            <p className="text-sm text-indigo-600/80 font-medium">AI 正在绘制...</p>
+                            <p className="text-sm text-indigo-600/80 font-medium">AI 正在生成中...</p>
                         </div>
                     )}
 
