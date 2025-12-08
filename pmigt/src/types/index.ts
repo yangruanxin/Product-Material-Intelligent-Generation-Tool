@@ -46,3 +46,11 @@ export interface UISession {
   id: string;
   name: string;
 }
+
+export interface Asset {
+  id: string;
+  type: 'image' | 'video';
+  url: string;
+  title: string;
+  createdAt: string;
+}

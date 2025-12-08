@@ -11,7 +11,7 @@ interface ChatMessageListProps {
     onMediaClick: (url: string, type: 'image' | 'video') => void;
 }
 
-export const ChatMessageList: React.FC<ChatMessageListProps> = ({ messages,isHistoryLoading,onMediaClick}) => {
+export const ChatMessageList: React.FC<ChatMessageListProps> = ({ messages = [],isHistoryLoading,onMediaClick}) => {
     //创建一个 Ref 来引用聊天内容的容器 DOM 元素
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const scrollAreaRef = useRef<HTMLDivElement | null>(null);
