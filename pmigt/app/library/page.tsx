@@ -1,16 +1,75 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import type { FC } from "react"; 
 import { Asset } from "@/src/types/index";
-import { Loader2, Image as ImageIcon, Video, PlayCircle, Download, Copy, Eye } from "lucide-react";
+import { 
+  Image as ImageIcon, 
+  Video, 
+  Download, 
+  Copy, 
+  Eye, 
+  MoreHorizontal,
+  CheckCircle2,
+  LucideProps
+} from "lucide-react";
 import { toast } from "sonner";
+
+
+
+// --- 1. 为 Filter 定义明确的类型 ---
+type FilterType = 'all' | 'image' | 'video';
+
+// --- 2. 为 Tab 按钮定义接口，确保类型安全 ---
+interface Tab {
+  id: FilterType;
+  label: string;
+  // icon 的类型是接受特定 props 的函数式组件 (Function Component)
+  icon: FC<LucideProps>; 
+}
+
+// --- 辅助组件：骨架屏 ---
+const SkeletonCard = () => (
+    <div className="bg-white rounded-xl overflow-hidden border border-gray-100/50 shadow-sm">
+      <div className="aspect-[3/4] bg-gray-100/80 animate-pulse relative">
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center">
+            <ImageIcon className="w-6 h-6 text-gray-300" />
+          </div>
+        </div>
+      </div>
+      <div className="p-4 space-y-3">
+        <div className="h-4 bg-gray-100 rounded w-3/4 animate-pulse" />
+        <div className="flex justify-between items-center">
+          <div className="h-3 bg-gray-50 rounded w-1/3 animate-pulse" />
+          <div className="h-6 w-6 bg-gray-100 rounded-full animate-pulse" />
+        </div>
+      </div>
+    </div>
+);
+
+// --- 辅助组件：为 onClick 指定正确的事件类型 ---
+interface ActionButtonProps {
+  onClick: (e: React.MouseEvent<HTMLButtonElement>) => void;
+  icon: React.ReactNode;
+  tooltip: string;
+}
+
+const ActionButton = ({ onClick, icon, tooltip }: ActionButtonProps) => (
+  <button 
+    onClick={onClick}
+    className="w-10 h-10 rounded-full bg-white/90 backdrop-blur text-gray-700 shadow-lg flex items-center justify-center hover:bg-blue-600 hover:text-white hover:scale-110 active:scale-95 transition-all duration-200"
+    title={tooltip}
+  >
+    {icon}
+  </button>
+);
 
 export default function LibraryPage() {
   const [loading, setLoading] = useState(true);
   const [assets, setAssets] = useState<Asset[]>([]);
-  const [filter, setFilter] = useState<'all' | 'image' | 'video'>('all');
+  const [filter, setFilter] = useState<FilterType>('all');
 
-  // 1. 加载数据
   useEffect(() => {
     const fetchAssets = async () => {
       try {
@@ -28,223 +87,181 @@ export default function LibraryPage() {
         setLoading(false);
       }
     };
-
     fetchAssets();
   }, []);
 
-  // 2. 根据 Tab 筛选数据
   const filteredAssets = assets.filter(asset => {
     if (filter === 'all') return true;
     return asset.type === filter;
   });
 
-  // 3. 强制下载文件逻辑 (通过 Blob)
-  const handleDownload = async (url: string, title: string) => {
-    const toastId = toast.loading("正在准备下载...");
+  const handleDownload = async (e: React.MouseEvent<HTMLButtonElement>, url: string, title: string) => {
+    e.stopPropagation();
+    
+    // 1. 创建 Toast 并获取其 ID
+    const toastId = toast.loading("准备下载...");
     
     try {
-      // Fetch 请求文件的二进制数据
-      const response = await fetch(url);
-      if (!response.ok) throw new Error("文件下载失败");
-      
-      const blob = await response.blob();
-      
-      // 创建临时 URL
-      const blobUrl = window.URL.createObjectURL(blob);
-      
-      // 创建隐藏的 a 标签并触发点击
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      
-      // 智能提取后缀名
-      const extension = url.split('.').pop()?.split('?')[0] || (blob.type.includes('video') ? 'mp4' : 'jpg');
-      
-      // 设置文件名 (去除空格，防止乱码)
-      link.download = `${title.slice(0, 10).replace(/\s/g, '_')}_${Date.now()}.${extension}`;
-      
-      document.body.appendChild(link);
-      link.click();
-      
-      // 清理
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(blobUrl);
-      
-      toast.dismiss(toastId);
-      toast.success("下载已开始");
-    } catch (error) {
-      console.error("下载出错:", error);
-      toast.dismiss(toastId);
-      // 降级方案：新窗口打开
-      window.open(url, '_blank');
-      toast.error("自动下载失败，已为您在新窗口打开");
-    }
-  };
+        const response = await fetch(url);
+        const blob = await response.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        const extension = url.split('.').pop()?.split('?')[0] || (blob.type.includes('video') ? 'mp4' : 'jpg');
+        link.download = `${title.slice(0, 10).replace(/\s/g, '_')}_${Date.now()}.${extension}`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(blobUrl);
 
-  // 4. 复制逻辑 (图片内容 / 视频链接)
-  const handleCopy = async (asset: Asset) => {
-    try {
-      // 视频：只复制链接
-      if (asset.type === 'video') {
+        // 2. 成功后，用 ID 更新 Toast
+        toast.success("已开始下载", { id: toastId });
+
+    } catch  {
+        window.open(url, '_blank');
+        
+        // 3. 失败后，用 ID 更新 Toast 为错误状态
+        toast.error("自动下载失败，已新窗口打开", { id: toastId });
+    }
+};
+
+  const handleCopy = async (e: React.MouseEvent<HTMLButtonElement>, asset: Asset) => {
+    e.stopPropagation();
+    
+    if (asset.type === 'video') {
         await navigator.clipboard.writeText(asset.url);
         toast.success("视频链接已复制");
         return;
-      }
-
-      // 图片：尝试复制图片二进制内容到剪贴板
-      toast.loading("正在复制图片...", { duration: 1000 });
-      
-      const response = await fetch(asset.url);
-      const blob = await response.blob();
-      
-      await navigator.clipboard.write([
-        new ClipboardItem({
-          [blob.type]: blob
-        })
-      ]);
-      toast.success("图片已复制，可直接粘贴");
-      
-    } catch (error) {
-      console.warn("复制图片内容失败，降级为复制链接", error);
-      // 降级方案：复制链接
-      await navigator.clipboard.writeText(asset.url);
-      toast.success("图片链接已复制");
     }
-  };
+
+    // 1. 创建 Toast 并获取其 ID，
+    const toastId = toast.loading("复制中...");
+
+    try {
+        const response = await fetch(asset.url);
+        const blob = await response.blob();
+        await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+        
+        toast.success("图片已复制", { id: toastId });
+        
+    } catch (error) {
+        console.warn("复制图片内容失败，降级为复制链接", error);
+        await navigator.clipboard.writeText(asset.url);
+        
+        toast.success("链接已复制", { id: toastId });
+    }
+};
+  
+  // --- 将 tabs 数据定义为一个符合 Tab 接口的数组 ---
+  const tabs: Tab[] = [
+    { id: 'all', label: '全部', icon: MoreHorizontal },
+    { id: 'image', label: '图片', icon: ImageIcon },
+    { id: 'video', label: '视频', icon: Video },
+  ];
 
   return (
-    <div className="flex-1 h-full bg-gray-50 flex flex-col overflow-hidden">
+    <div className="flex-1 h-full bg-[#F4F6F8] flex flex-col overflow-hidden font-sans">
       
-      {/* 顶部标题栏 */}
-      <header className="px-8 py-6 bg-white border-b border-gray-100 flex items-center justify-between shrink-0">
+      <header className="px-8 py-6 bg-white/80 backdrop-blur-md border-b border-gray-200/60 sticky top-0 z-20 flex items-center justify-between shrink-0">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">资产库</h1>
-          <p className="text-sm text-gray-500 mt-1">管理您生成的所有创意素材</p>
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">创意资料库</h1>
+          <div className="flex items-center gap-2 mt-1">
+             <span className="w-2 h-2 rounded-full bg-green-500"></span>
+             <p className="text-sm text-gray-500">已生成 {assets.length} 个创意素材</p>
+          </div>
         </div>
         
-        {/* 分类 Tab */}
-        <div className="flex bg-gray-100 p-1 rounded-lg">
-          <button
-            onClick={() => setFilter('all')}
-            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
-              filter === 'all' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            全部
-          </button>
-          <button
-            onClick={() => setFilter('image')}
-            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all flex items-center gap-1 ${
-              filter === 'image' ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            <ImageIcon size={14} /> 图片
-          </button>
-          <button
-            onClick={() => setFilter('video')}
-            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all flex items-center gap-1 ${
-              filter === 'video' ? 'bg-white shadow text-purple-600' : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            <Video size={14} /> 视频
-          </button>
+        <div className="bg-gray-100/80 p-1 rounded-lg flex items-center shadow-inner">
+          {tabs.map((tab) => {
+            const IconComponent = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setFilter(tab.id)}
+                className={`
+                  relative px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 flex items-center gap-2
+                  ${filter === tab.id 
+                    ? 'bg-white text-blue-600 shadow-sm ring-1 ring-black/5' 
+                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'}
+                `}
+              >
+                <IconComponent size={16} strokeWidth={2.5} />
+                {tab.label}
+              </button>
+            )
+          })}
         </div>
       </header>
 
-      {/* 内容区域 */}
-      <main className="flex-1 overflow-y-auto p-8">
+      <main className="flex-1 overflow-y-auto p-6 md:p-8">
         
         {loading ? (
-          <div className="flex h-full items-center justify-center text-gray-400">
-            <Loader2 className="w-8 h-8 animate-spin" />
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-6">
+            {Array.from({ length: 10 }).map((_, i) => <SkeletonCard key={i} />)}
           </div>
         ) : filteredAssets.length === 0 ? (
-          // 空状态
-          <div className="flex flex-col items-center justify-center h-64 text-gray-400">
-            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-              <ImageIcon className="w-8 h-8 opacity-50" />
+          <div className="flex flex-col items-center justify-center h-[60vh]">
+            <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center shadow-lg mb-6 border border-gray-50">
+              <ImageIcon className="w-10 h-10 text-gray-300" />
             </div>
-            <p>暂无相关素材，快去生成一个吧！</p>
+            <h3 className="text-lg font-semibold text-gray-900">暂无创意素材</h3>
+            <p className="text-gray-500 mt-2 text-sm max-w-xs text-center">
+              您生成的图片或视频将汇集于此，快去创建您的第一个作品吧。
+            </p>
           </div>
         ) : (
-          // 网格列表
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-6 pb-20">
             {filteredAssets.map((asset) => (
               <div 
                 key={asset.id} 
-                className="group relative bg-white rounded-xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1"
+                className="group relative flex flex-col bg-white rounded-xl overflow-hidden border border-gray-200/60 shadow-sm hover:shadow-xl hover:border-blue-500/30 hover:-translate-y-1 hover:ring-1 hover:ring-blue-500/20 transition-all duration-300 ease-out cursor-pointer"
               >
-                {/* 媒体展示区 (固定比例容器) */}
-                <div className="aspect-square relative bg-gray-100 flex items-center justify-center overflow-hidden">
+                <div className="aspect-square relative bg-gray-50 overflow-hidden">
+                  <div className="absolute top-3 left-3 z-10">
+                    <span className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider backdrop-blur-md shadow-sm border border-white/20 text-white ${asset.type === 'video' ? 'bg-purple-500/90' : 'bg-blue-500/90'}`}>
+                      {asset.type === 'video' ? 'VIDEO' : 'IMAGE'}
+                    </span>
+                  </div>
                   {asset.type === 'video' ? (
                     <>
-                      <video 
-                        src={asset.url} 
-                        className="w-full h-full object-cover"
-                        muted // 静音才能自动播放预览
-                        loop  // 循环播放
-                        onMouseOver={e => e.currentTarget.play()}
-                        onMouseOut={e => {
-                            e.currentTarget.pause();
-                            e.currentTarget.currentTime = 0;
-                        }}
-                      />
-                      {/* 右上角视频标识 */}
-                      <div className="absolute top-2 right-2 bg-black/40 text-white p-1 rounded-full backdrop-blur-sm pointer-events-none">
-                        <Video size={14} />
-                      </div>
-                      {/* 中间播放按钮 */}
-                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none group-hover:opacity-0 transition-opacity">
-                        <PlayCircle className="w-10 h-10 text-white/80" />
-                      </div>
+                    <video 
+                      src={asset.url} 
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                      muted 
+                      loop 
+                      playsInline
+                      onMouseOver={e => e.currentTarget.play()}
+                      onMouseOut={e => {
+                          e.currentTarget.pause();
+                          e.currentTarget.currentTime = 0;
+                      }}
+                    />
                     </>
                   ) : (
-                    <img 
-                      src={asset.url} 
-                      alt={asset.title} 
-                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                    />
+                    <img src={asset.url} alt={asset.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy" />
                   )}
-                  
-                  {/* 悬浮遮罩：操作按钮组 */}
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                     
-                     {/* 1. 预览按钮 */}
-                     <button 
-                        onClick={() => window.open(asset.url, '_blank')}
-                        className="bg-white/90 hover:bg-white text-gray-800 p-2 rounded-full backdrop-blur-sm transition-transform hover:scale-110 shadow-lg"
-                        title="在新窗口预览"
-                     >
-                        <Eye size={16} />
-                     </button>
-
-                     {/* 2. 复制按钮 */}
-                     <button 
-                        onClick={() => handleCopy(asset)}
-                        className="bg-white/90 hover:bg-white text-gray-800 p-2 rounded-full backdrop-blur-sm transition-transform hover:scale-110 shadow-lg"
-                        title={asset.type === 'image' ? "复制图片" : "复制链接"}
-                     >
-                        <Copy size={16} />
-                     </button>
-
-                     {/* 3. 下载按钮 */}
-                     <button 
-                        onClick={() => handleDownload(asset.url, asset.title)}
-                        className="bg-white/90 hover:bg-white text-gray-800 p-2 rounded-full backdrop-blur-sm transition-transform hover:scale-110 shadow-lg"
-                        title="下载"
-                     >
-                        <Download size={16} />
-                     </button>
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300 pointer-events-none" />
+                  <div className="absolute bottom-4 left-0 right-0 flex items-center justify-center gap-3 opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 transition-all duration-300">
+                     <ActionButton onClick={(e) => { e.stopPropagation(); window.open(asset.url, '_blank'); }} icon={<Eye size={18} />} tooltip="预览" />
+                     <ActionButton onClick={(e) => handleCopy(e, asset)} icon={<Copy size={18} />} tooltip="复制" />
+                     <ActionButton onClick={(e) => handleDownload(e, asset.url, asset.title)} icon={<Download size={18} />} tooltip="下载" />
                   </div>
                 </div>
-
-                {/* 底部信息 */}
-                <div className="p-3">
-                  <h3 className="text-sm font-medium text-gray-800 truncate" title={asset.title}>
-                    {asset.title}
-                  </h3>
-                  <p className="text-xs text-gray-400 mt-1">
-                    {new Date(asset.createdAt).toLocaleDateString()}
-                  </p>
+                <div className="p-3 bg-white border-t border-gray-50 flex flex-col gap-1 relative">
+                  <div className="flex items-start justify-between gap-2">
+                    <h3 className="text-sm font-semibold text-gray-800 line-clamp-2 leading-snug group-hover:text-blue-600 transition-colors" title={asset.title}>
+                      {"未命名素材"}
+                    </h3>
+                  </div>
+                  <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100 border-dashed">
+                    <p className="text-xs text-gray-400 font-mono">
+                      {new Date(asset.createdAt).toISOString().split('T')[0]}
+                    </p>
+                    <div className="flex items-center gap-1 text-[10px] text-green-600 bg-green-50 px-1.5 py-0.5 rounded border border-green-100">
+                        <CheckCircle2 size={10} />
+                        <span>已生成</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             ))}
