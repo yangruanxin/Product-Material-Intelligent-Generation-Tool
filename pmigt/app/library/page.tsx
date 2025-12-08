@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Asset } from "@/src/types/index";
-import { Loader2, Image as ImageIcon, Video, PlayCircle, Download, Copy, Eye } from "lucide-react";
+import { Loader2, Image as ImageIcon, Video, Download, Copy, Eye } from "lucide-react";
 import { toast } from "sonner";
 
 export default function LibraryPage() {
@@ -173,71 +173,69 @@ export default function LibraryPage() {
                 key={asset.id} 
                 className="group relative bg-white rounded-xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1"
               >
-                {/* 媒体展示区 (固定比例容器) */}
+                {/* 媒体展示区 */}
                 <div className="aspect-square relative bg-gray-100 flex items-center justify-center overflow-hidden">
                   {asset.type === 'video' ? (
                     <>
                       <video 
                         src={asset.url} 
                         className="w-full h-full object-cover"
-                        muted // 静音才能自动播放预览
-                        loop  // 循环播放
+                        muted 
+                        loop // 建议加上循环播放
+                        playsInline
+                        // 鼠标移上去自动播放
                         onMouseOver={e => e.currentTarget.play()}
+                        // 鼠标移开停止并重置
                         onMouseOut={e => {
                             e.currentTarget.pause();
                             e.currentTarget.currentTime = 0;
                         }}
                       />
-                      {/* 右上角视频标识 */}
-                      <div className="absolute top-2 right-2 bg-black/40 text-white p-1 rounded-full backdrop-blur-sm pointer-events-none">
+                      {/* 右上角的小图标保留，标示这是个视频 */}
+                      <div className="absolute top-2 right-2 bg-black/30 text-white p-1 rounded-full backdrop-blur-sm pointer-events-none">
                         <Video size={14} />
-                      </div>
-                      {/* 中间播放按钮 */}
-                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none group-hover:opacity-0 transition-opacity">
-                        <PlayCircle className="w-10 h-10 text-white/80" />
                       </div>
                     </>
                   ) : (
                     <img 
                       src={asset.url} 
                       alt={asset.title} 
-                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                     />
                   )}
                   
-                  {/* 悬浮遮罩：操作按钮组 */}
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                  <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/80 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
                      
-                     {/* 1. 预览按钮 */}
+                     {/* 预览 */}
                      <button 
                         onClick={() => window.open(asset.url, '_blank')}
-                        className="bg-white/90 hover:bg-white text-gray-800 p-2 rounded-full backdrop-blur-sm transition-transform hover:scale-110 shadow-lg"
+                        className="text-white/80 hover:text-white hover:scale-110 transition-transform"
                         title="在新窗口预览"
                      >
-                        <Eye size={16} />
+                        <Eye size={20} />
                      </button>
 
-                     {/* 2. 复制按钮 */}
+                     {/* 复制 */}
                      <button 
                         onClick={() => handleCopy(asset)}
-                        className="bg-white/90 hover:bg-white text-gray-800 p-2 rounded-full backdrop-blur-sm transition-transform hover:scale-110 shadow-lg"
+                        className="text-white/80 hover:text-white hover:scale-110 transition-transform"
                         title={asset.type === 'image' ? "复制图片" : "复制链接"}
                      >
-                        <Copy size={16} />
+                        <Copy size={20} />
                      </button>
 
-                     {/* 3. 下载按钮 */}
+                     {/* 下载 */}
                      <button 
                         onClick={() => handleDownload(asset.url, asset.title)}
-                        className="bg-white/90 hover:bg-white text-gray-800 p-2 rounded-full backdrop-blur-sm transition-transform hover:scale-110 shadow-lg"
+                        className="text-white/80 hover:text-white hover:scale-110 transition-transform"
                         title="下载"
                      >
-                        <Download size={16} />
+                        <Download size={20} />
                      </button>
                   </div>
                 </div>
 
-                {/* 底部信息 */}
+                {/* 底部标题信息 */}
                 <div className="p-3">
                   <h3 className="text-sm font-medium text-gray-800 truncate" title={asset.title}>
                     {asset.title}
