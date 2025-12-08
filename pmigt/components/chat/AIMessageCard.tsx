@@ -44,7 +44,6 @@ interface AIMessageCardProps {
     onMediaClick: (url: string, type: 'image' | 'video') => void;
     isLastAIMessage: boolean;//判断是否是最后一条生成的AI消息，用于重新生成按钮显示
     onRegenerate: (message: UIMessage) => void;//处理重新生成的按钮被点击 函数
-
 }
 
 /**
@@ -78,20 +77,19 @@ export const AIMessageCard: React.FC<AIMessageCardProps> = ({ message ,onMediaCl
     }, []);
 
     // 重新生成组件
-    const ReGenerateButton: React.FC<{ onClick: () => void }> = ({ onClick }) => (
+    const ReGenerateButton: React.FC<{
+        message: UIMessage;
+        onRegenerate: (msg: UIMessage) => void;
+    }> = ({ message, onRegenerate }) => (
         <div className="flex justify-start pt-2"> 
             <button
-                onClick={onClick} 
+                onClick={() => onRegenerate(message)}
                 className="
                     flex items-center space-x-1.5 px-3 py-1.5
                     text-xs font-medium text-white rounded-full 
                     shadow-md transition-all duration-300 transform
-                    
-                    /* 蓝紫渐变背景 */
                     bg-gradient-to-r from-blue-500 to-purple-500 
                     hover:from-blue-600 hover:to-purple-600 
-                    
-                    /* 悬停效果 */
                     hover:shadow-lg hover:scale-[1.02]
                 "
                 title="重新生成此回复"
@@ -102,13 +100,14 @@ export const AIMessageCard: React.FC<AIMessageCardProps> = ({ message ,onMediaCl
         </div>
     );
 
+
     // 判断重新生成按钮是否渲染
     const shouldShowRegenerate = isLastAIMessage && !loading;
     // 重新生成按钮
     const renderRegenerateButton = () => {
         if (shouldShowRegenerate) {
             // 调用 onRegenerate 并传入当前 message
-            return <ReGenerateButton onClick={() => onRegenerate(message)} />;
+            return <ReGenerateButton message={message} onRegenerate={onRegenerate}/>
         }
         return null;
     }

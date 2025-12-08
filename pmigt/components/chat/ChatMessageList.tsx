@@ -9,13 +9,18 @@ interface ChatMessageListProps {
     messages: UIMessage[];
     isHistoryLoading?: boolean;//判断历史消息是否正在加载
     onMediaClick: (url: string, type: 'image' | 'video') => void;
+    onRegenerate:(message: UIMessage) => void;
 }
 
-export const ChatMessageList: React.FC<ChatMessageListProps> = ({ messages = [],isHistoryLoading,onMediaClick}) => {
+export const ChatMessageList: React.FC<ChatMessageListProps> = ({ messages,isHistoryLoading,onMediaClick,onRegenerate}) => {
     //创建一个 Ref 来引用聊天内容的容器 DOM 元素
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const scrollAreaRef = useRef<HTMLDivElement | null>(null);
     const containerRef = useRef<HTMLDivElement | null>(null);
+
+    // 获取最后一条消息（如果有的话）
+    const lastMessage = messages.length > 0 ? messages[messages.length - 1] : null;
+    const lastMessageId = lastMessage ? lastMessage.id : null;
 
     const scrollToBottom = useCallback(
         (behavior: ScrollBehavior = 'smooth') => {
@@ -100,6 +105,11 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({ messages = [],
                                 key={messageKey}
                                 message={msg}
                                 onMediaClick={onMediaClick}
+                                isLastAIMessage={
+                                    msg.id === lastMessageId && // 确保是最后一条消息
+                                    msg.sender === 'ai'        // 确保发送者是 AI
+                                }
+                                onRegenerate={onRegenerate}
                             />
                         ) : (
                             <UserMessageCard key={i} message={msg} />

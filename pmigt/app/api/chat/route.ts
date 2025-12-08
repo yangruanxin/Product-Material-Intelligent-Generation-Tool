@@ -35,6 +35,8 @@ export async function POST(req: Request) {
     // 解析 Body：去掉了 userId 的解构，因为上面已经拿到了
     const { userPrompt, sessionId, saveImageUrl, contextImageUrl, isRegenerate, deleteMessageId, modelId } = await req.json();
     
+    console.log("后端收到 isRegenerate =", isRegenerate,"deleteMessageId:",deleteMessageId);
+
     const backendEndpointId = getModelEndpointId(modelId);
 
     if (!backendEndpointId) {
@@ -46,20 +48,20 @@ export async function POST(req: Request) {
     }
 
     let currentSessionId = sessionId;
-    let finalImageUrl = contextImageUrl;
-    if (contextImageUrl&& contextImageUrl.startsWith('http')) {
-      try {
-        console.log("正在下载图片并转换为 Base64...", contextImageUrl);
-        const imgRes = await fetch(contextImageUrl);
-        if (!imgRes.ok) throw new Error("图片下载失败");
-        const arrayBuffer = await imgRes.arrayBuffer();
-        const base64 = Buffer.from(arrayBuffer).toString('base64');
-        const contentType = imgRes.headers.get('content-type') || 'image/jpeg';
-        finalImageUrl = `data:${contentType};base64,${base64}`;
-      } catch {
-        console.error("图片转 Base64 失败，降级使用原链接");
-      }
-    }
+    const finalImageUrl = contextImageUrl;
+    // if (contextImageUrl&& contextImageUrl.startsWith('http')) {
+    //   try {
+    //     console.log("正在下载图片并转换为 Base64...", contextImageUrl);
+    //     const imgRes = await fetch(contextImageUrl);
+    //     if (!imgRes.ok) throw new Error("图片下载失败");
+    //     const arrayBuffer = await imgRes.arrayBuffer();
+    //     const base64 = Buffer.from(arrayBuffer).toString('base64');
+    //     const contentType = imgRes.headers.get('content-type') || 'image/jpeg';
+    //     finalImageUrl = `data:${contentType};base64,${base64}`;
+    //   } catch {
+    //     console.error("图片转 Base64 失败，降级使用原链接");
+    //   }
+    // }
 
 
     // 如果前端没传 sessionId，说明是“新建会话”
@@ -89,7 +91,13 @@ export async function POST(req: Request) {
     }
 
     if (isRegenerate && deleteMessageId) {
-      await supabase.from('messages').delete().eq('id', deleteMessageId);
+      console.log(`执行删除操作: 删除消息 ID ${deleteMessageId}`);
+      const { error: deleteError } = await supabase.from('messages').delete().eq('id', deleteMessageId);
+      if (deleteError) {
+        console.error("❌ 重新生成时删除旧消息失败:", deleteError);
+      } else {
+          console.log(`✅ 成功删除旧 AI 消息 ID ${deleteMessageId}`);
+      }
     }
 
     const systemPrompt = `

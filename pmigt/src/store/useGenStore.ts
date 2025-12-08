@@ -33,6 +33,7 @@ interface GenState {
     setActiveSessionId: (id: string | null) => void;
     setIsSessionLoading: (loading: boolean) => void;
     setSessionError: (error: string | null) => void;
+    
     //消息相关
     setMessages: (messages: UIMessage[]) => void;//设置或替换当前会话的所有历史消息
     addMessage: (message: UIMessage) => void;//向消息列表追加一条消息
@@ -56,6 +57,31 @@ interface GenState {
     setHomeImageUrl: (url: string | null) => void;
 
     clearHomeState: () => void;//首页状态清理
+
+    // generate页持久化
+    genPrompt: string;
+    genMode: ModeType;
+    genModelId: ModelId;
+
+    setGenPrompt: (prompt: string) => void;
+    setGenMode: (mode: ModeType) => void;
+    setGenModelId: (modelId: ModelId) => void;
+
+    // 发送请求
+    // 发送前的预处理 删除旧消息、追加新消息和占位符、更新状态
+    processNewRequest: (
+        userMessage: UIMessage,
+        aiPlaceholder: UIMessage,
+        isRegenerate: boolean,
+        deleteMessageId?: string
+    ) => void;
+
+    // API 返回后的替换处理：替换占位符为真实消息
+    replacePlaceholder: (
+        placeholderId: string,
+        finalMessage: UIMessage,
+        lastMessageId: string
+    ) => void;
 
     // 水合状态
     //判断 Zustand Store 是否已从 localStorage 恢复数据 (客户端水合完成) 
@@ -147,6 +173,76 @@ export const useGenStore = create<GenState>()(
             homeImageUrl: null,
         }),
         
+        // generate页状态持久化
+        genPrompt: '', // 初始值为空
+        genMode: 'agent', // 初始值为 'agent'
+        genModelId: getDefaultModelIdByMode("agent"), // 初始值为默认 Agent 模型
+        
+        setGenPrompt: (prompt) => set({ genPrompt: prompt }),
+        setGenMode: (mode) => {
+            // 模式切换时，自动更新对应的默认模型
+            const defaultModel = getDefaultModelIdByMode(mode);
+            set({ 
+                genMode: mode,
+                genModelId: defaultModel, // 确保模型ID也跟着模式切换
+            });
+        },
+        setGenModelId: (modelId) => set({ genModelId: modelId }),
+        
+        // 发送请求需要的action
+        processNewRequest: (userMessage, aiPlaceholder, isRegenerate, deleteMessageId) => set((state) => {
+            
+            let newList = [...state.messages];
+
+            // 处理重新生成时的消息删除
+            if (isRegenerate && deleteMessageId) {
+                newList = newList.filter(msg => msg.id !== deleteMessageId);
+            }
+
+            if (!isRegenerate) {
+                // 只有在非重新生成的情况下，才追加用户消息
+                newList.push(userMessage);
+            }
+            
+            // 追加 AI 占位符
+            newList.push(aiPlaceholder);
+            
+            // 更新 Store 状态
+            return {
+                messages: newList,
+                lastUserPrompt: userMessage.text, // 记录最新的用户 Prompt
+                isAILoading: true,                   // 开启 AI 加载状态
+                input: "",                           // 清空输入框草稿
+            };
+        }),
+
+        replacePlaceholder: (placeholderId, finalMessage, lastMessageId) => set((state) => {
+            
+            let replaced = false;
+
+            // 遍历消息列表，替换占位符
+            const newList = state.messages.map(msg => {
+                if (msg.id === placeholderId) {
+                    replaced = true;
+                    // 返回最终的 AI 消息体
+                    return finalMessage; 
+                }
+                return msg;
+            });
+
+            // 如果替换失败，则追加新消息 (作为保险措施)
+            if (!replaced) {
+                console.warn(`找不到 ID 为 ${placeholderId} 的占位消息，将作为新消息追加。`);
+                newList.push(finalMessage);
+            }
+
+            // 记录真实的 AI 消息 ID 和停止加载
+            return {
+                messages: newList,
+                lastAIMessageId: lastMessageId, // 记录最新的 AI 消息 ID
+                isAILoading: false,             // 停止加载
+            };
+        }),
 
         // 水合状态
         isHydrated: false, 

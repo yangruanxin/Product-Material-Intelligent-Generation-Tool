@@ -70,6 +70,9 @@ export default function HomePage() {
     const setFinalImageUrl = useGenStore(state => state.setHomeImageUrl);
     const clearHomeState = useGenStore(state => state.clearHomeState);
 
+    const setActiveSessionId = useGenStore(state => state.setActiveSessionId);
+    const setMessages = useGenStore(state => state.setMessages);
+
     // 用于接收上传成功的图片url
     const handleImageUpdate = useCallback((url: string | null) => {
         setFinalImageUrl(url);
@@ -138,6 +141,8 @@ export default function HomePage() {
         }
         console.log("发送的路由:", 'prompt', trimmedPrompt, 'mode', currentMode, 'imageUrl', finalImageUrl, 'selectedModel.id')
         clearHomeState();
+        setActiveSessionId(null);
+        setMessages([]);
         // 使用 Next.js 的路由跳转，传递 prompt
         router.push(`/generate?${params.toString()}`);
     };
