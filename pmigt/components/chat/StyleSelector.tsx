@@ -15,9 +15,7 @@ export const StyleSelector: React.FC<StyleSelectorProps> = ({ selectedStyleId, o
 
   const { 
     isUploading, 
-    uploadFileToSupabase,
-    setUploadError
-  } = useFileUploader();
+    uploadFileToSupabase  } = useFileUploader();
   
   // 本地预览图状态
   const [customPreviewUrl, setCustomPreviewUrl] = useState<string | null>(null);

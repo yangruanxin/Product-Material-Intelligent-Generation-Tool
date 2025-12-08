@@ -1,5 +1,4 @@
 "use client";
-export const dynamic = "force-dynamic"; 
 
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 
@@ -9,14 +8,10 @@ import { ChatMessageList } from "@/components/chat/ChatMessageList";
 import { ChatInputArea } from "@/components/chat/ChatInputArea";
 // 导入模型选择组件和类型
 import { ModelSelector } from "@/components/ModelSelector";
-import { ModelId, getModelsByMode, getDefaultModelIdByMode } from '@/src/types/model';
-
-// supabase
-import { useUser } from "@/components/user/UserProvider";
-
+import { getModelsByMode, getDefaultModelIdByMode } from '@/src/types/model';
 
 // 类型定义
-import { AIContent, Message, UIMessage, UISession} from '@/src/types/index'
+import { Message, UIMessage, UISession} from '@/src/types/index'
 
 // 反馈提示
 import { toast } from "sonner"
@@ -26,28 +21,28 @@ import { formatAIMarketingText } from '@/utils/messageFormatter';
 
 // 导入 Hook 和常量
 import { useSessionManager } from "@/hooks/useSessionManager";
-import { useSearchParams } from "next/navigation";
 import { ModeType } from "@/components/ModeTabs";
 import { MediaPreviewPanel } from "@/components/chat/MediaPreviewPanel";
 import { FloatingFileUploadBox } from "@/components/FloatingFileUploadBox";
 import { useRouter } from 'next/navigation';
 import { useGenStore } from "@/src/store/useGenStore";
-import { handler } from "next/dist/build/templates/app-page";
 
 export default function GeneratePage() {
     const router = useRouter();
-    // 获取路由参数
-    const searchParams = useSearchParams();
-    const urlMode = searchParams.get('mode') as ModeType | null;
-    const urlPrompt = searchParams.get('prompt') || '';
-    const urlImageUrl = searchParams.get('imageUrl') || null;
-    const urlModelId = searchParams.get('modelId') as ModelId | null;
+    // 获取首页传的参数
+    const homePrompt = useGenStore(state => state.homePrompt);
+    const homeMode = useGenStore(state => state.homeMode);
+    const homeModelId = useGenStore(state => state.homeModelId);
+    const homeImageUrl = useGenStore(state => state.homeImageUrl);
+    const shouldLaunchNewSession = useGenStore(state => state.shouldLaunchNewSession);
+    const setShouldLaunchNewSession = useGenStore(state => state.setShouldLaunchNewSession);
+
+    const clearHomeState = useGenStore(state => state.clearHomeState);
 
     // 获取全局状态
     const userId = useGenStore(state => state.userId);//userId
     const messages = useGenStore(state => state.messages);//存储的当前会话的历史消息
     const setMessages = useGenStore(state => state.setMessages);
-    const addMessage = useGenStore(state => state.addMessage);
     const currentSessionImageUrl = useGenStore(state => state.currentSessionImageUrl);
     const setCurrentSessionImageUrl = useGenStore(state => state.setCurrentSessionImageUrl);
     const currentMode = useGenStore(state => state.genMode);
@@ -77,8 +72,6 @@ export default function GeneratePage() {
     const setLastAIMessageId = useGenStore(state => state.setLastAIMessageId);
 
     // 用于右侧媒体预览栏
-    const [imageUrl, setImageUrl] = useState<string | null>(null);
-    const [videoUrl, setVideoUrl] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
 
     // 用于显示用户点击消息中图片的 URL 和类型
@@ -124,7 +117,6 @@ export default function GeneratePage() {
         sessions,
         activeSessionId,
         addSession,
-        handleNewSession,
         handleSessionChange,
         loadSessionMessages,
     } = useSessionManager(userId, resetSessionContent);
@@ -247,8 +239,7 @@ export default function GeneratePage() {
         const finalImage = overrideImageUrl ?? currentSessionImageUrl;
         const finalIsFresh = isFreshUpload ?? isImageFreshlyUploaded;
         // 让重新生成优先选择模式
-        const finalMode = overrideMode || 
-            (isImageGenerationMode ? "image" : isVideoGenerationMode ? "video" : "agent");
+        const finalMode = overrideMode || homeMode || currentMode;
         const finalModelId = isRegenerate ? getDefaultModelIdByMode(finalMode) : selectedModelId;
         if (isLoading  || isHistoryLoading) return;
 
@@ -311,7 +302,7 @@ export default function GeneratePage() {
             saveImageUrl: finalIsFresh ? finalImage : undefined, 
             isRegenerate: isRegenerate,
             deleteMessageId: deleteMessageId, 
-            modelId: urlModelId?urlModelId:finalModelId,
+            modelId: homeModelId?homeModelId:finalModelId,
         };
 
         console.log("发送聊天请求，bodyData JSON:", JSON.stringify(bodyData, null, 2));
@@ -368,7 +359,6 @@ export default function GeneratePage() {
             if (finalMode === "image") {
                 // 图片模式：返回生成的图片 URL
                 generatedMediaUrl = result.imageUrl; 
-                setImageUrl(result.imageUrl);
                 setPreviewMediaUrl(result.imageUrl);
                 setPreviewMediaType('image');
                 setIsLoading(false);
@@ -376,7 +366,6 @@ export default function GeneratePage() {
             } else if (finalMode==="video") {
                 // 视频模式：返回生成的视频 URL
                 generatedMediaUrl = result.videoUrl; 
-                setVideoUrl(result.videoUrl);
                 setPreviewMediaUrl(result.videoUrl);
                 setPreviewMediaType('video');
                 setIsLoading(false);
@@ -489,45 +478,75 @@ export default function GeneratePage() {
     
     // 若有prompt和imageUrl,自动发送
     useEffect(() => {
-        // 确保只执行一次，且有足够的参数启动新会话
-        if (isInitialized|| !urlImageUrl || !urlPrompt || autoSentRef.current) {
-            // 如果没有 Prompt (意味着不是从 Home 提交过来的新任务)
-            // 并且没有历史会话 ID，则不做任何处理，或提示用户。
+        console.log("shouldLaunchNewSession:",shouldLaunchNewSession)
+        // 检查条件：
+        if (isInitialized || !homeImageUrl || !homePrompt || autoSentRef.current||!shouldLaunchNewSession) {
             return;
         }
 
-        autoSentRef.current = true;
+        const initializeAndSend = async () => {
+            autoSentRef.current = true; // 标记为已触发自动发送
+            setShouldLaunchNewSession(false);
 
-        // 计算最终的 Mode 和 ModelId (优先使用 URL 参数)
-        const finalMode = urlMode && ['agent', 'image', 'video'].includes(urlMode) 
-            ? urlMode 
-            : 'agent';
+            // 准备数据 
+            const finalMode = homeMode && ['agent', 'image', 'video'].includes(homeMode) 
+                ? homeMode 
+                : 'agent';
+            
+            const possibleModels = getModelsByMode(finalMode);
+            const finalModelId = homeModelId && possibleModels.some(m => m.id === homeModelId)
+                ? homeModelId
+                : getDefaultModelIdByMode(finalMode);
+
+            // 设置当前会话的状态 
+            setCurrentMode(finalMode);
+            setSelectedModelId(finalModelId);
+            setCurrentSessionImageUrl(homeImageUrl); 
+            setInput('');
+            setIsInitialized(true);
+            setIsImageFreshlyUploaded(true);
+            setActiveSessionId(null);
+
+            console.log("home状态：", homePrompt, homeImageUrl, homeMode, homeModelId);
+
+            // 等待 handleSend 完成 
+            try {
+                // handleSend 内部应该包含 API fetch 并返回 Promise
+                await handleSend(homePrompt, homeImageUrl, true);
+                
+                // 成功完成后清空 home 状态
+                clearHomeState(); 
+
+            } catch (error) {
+                // 如果 handleSend 内部 API 失败或抛出错误
+                console.error("Home状态自动发送请求失败:", error);
+                clearHomeState(); 
+            }
+        };
+
+        initializeAndSend(); // 执行 async 函数
+
+    }, [
+        isInitialized, 
+        homePrompt,         // 依赖 Home 状态
+        homeMode,           // 依赖 Home 状态
+        homeImageUrl,       // 依赖 Home 状态
+        homeModelId,        // 依赖 Home 状态
+        clearHomeState,     // 依赖清除方法
         
-        const possibleModels = getModelsByMode(finalMode);
-        const finalModelId = urlModelId && possibleModels.some(m => m.id === urlModelId)
-            ? urlModelId
-            : getDefaultModelIdByMode(finalMode);
-
-
-        // 立即设置当前会话的参数
-        setCurrentMode(finalMode);
-        setSelectedModelId(finalModelId);
-        setCurrentSessionImageUrl(urlImageUrl); 
-        // 清空输入框草稿
-        setInput('');
-        // 设置初始化标志
-        setIsInitialized(true);
-        setIsImageFreshlyUploaded(true); // 标记图片为新上传
-        setActiveSessionId(null); // 确保是新会话
-
-        handleSend(urlPrompt, urlImageUrl, true);
-        
-        // 请理 URL 参数 避免刷新时重复提交
-        router.replace('/generate', undefined);
-
-    }, [isInitialized, urlPrompt, urlMode, urlImageUrl, urlModelId, 
-        setCurrentSessionImageUrl, addMessage, setInput, router,setCurrentMode, setSelectedModelId,setCurrentSessionImageUrl, setIsImageFreshlyUploaded, setActiveSessionId, 
-    setInput, handleSend, router,setIsInitialized,getModelsByMode,getDefaultModelIdByMode,]);
+        // 依赖 setter/action 方法
+        setCurrentMode, 
+        setSelectedModelId, 
+        setCurrentSessionImageUrl, 
+        setInput, 
+        setIsInitialized,
+        setIsImageFreshlyUploaded, 
+        setActiveSessionId, 
+        handleSend,
+        // 依赖工具函数 (它们应该是稳定的或来自外部依赖，但在此列出以确保完整性)
+        getModelsByMode,
+        getDefaultModelIdByMode,
+    ]);
 
     // 处理用户点击后媒体区展示新图
     const handleMessageMediaClick = useCallback((url: string, type: 'image' | 'video') => {

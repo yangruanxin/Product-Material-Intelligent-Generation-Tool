@@ -59,6 +59,10 @@ interface GenState {
 
     clearHomeState: () => void;//首页状态清理
 
+    // 是否是首页点击发送之后的任务
+    shouldLaunchNewSession: boolean; 
+    setShouldLaunchNewSession: (shouldLaunch: boolean) => void;
+
     // generate页持久化
     genPrompt: string;
     genMode: ModeType;
@@ -265,7 +269,12 @@ export const useGenStore = create<GenState>()(
             if (!url && get().currentStyle.id === CUSTOM_STYLE_ID) {
                 set({ currentStyle: DEFAULT_STYLE });
             }
-        },
+          },
+        
+        shouldLaunchNewSession: false, 
+        setShouldLaunchNewSession: (shouldLaunch) => set({ 
+            shouldLaunchNewSession: shouldLaunch 
+        }),
         
         // 水合状态
         isHydrated: false, 

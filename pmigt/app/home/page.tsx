@@ -68,10 +68,10 @@ export default function HomePage() {
     const setCurrentMode = useGenStore(state => state.setHomeMode); 
     const setSelectedModelId = useGenStore(state => state.setHomeModelId);
     const setFinalImageUrl = useGenStore(state => state.setHomeImageUrl);
-    const clearHomeState = useGenStore(state => state.clearHomeState);
 
     const setActiveSessionId = useGenStore(state => state.setActiveSessionId);
     const setMessages = useGenStore(state => state.setMessages);
+    const setShouldLaunchNewSession = useGenStore(state => state.setShouldLaunchNewSession);
 
     // 用于接收上传成功的图片url
     const handleImageUpdate = useCallback((url: string | null) => {
@@ -130,21 +130,11 @@ export default function HomePage() {
             return;
         }
 
-        // 要传递的路由参数
-        const params = new URLSearchParams();
-        params.append('prompt', trimmedPrompt);//提示词
-        params.append('mode', currentMode);//当前模式
-        params.append('modelId', selectedModel.id);//传递选择的模型名字
-        // 当前会话参考图
-        if (finalImageUrl) {
-            params.append('imageUrl', finalImageUrl);
-        }
-        console.log("发送的路由:", 'prompt', trimmedPrompt, 'mode', currentMode, 'imageUrl', finalImageUrl, 'selectedModel.id')
-        clearHomeState();
         setActiveSessionId(null);
         setMessages([]);
+        setShouldLaunchNewSession(true);
         // 使用 Next.js 的路由跳转，传递 prompt
-        router.push(`/generate?${params.toString()}`);
+        router.push('/generate');
     };
 
     // 水合状态的加载

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback } from 'react';
 import { UIMessage, UISession } from '@/src/types/index'; 
 import { useGenStore } from '@/src/store/useGenStore';
 
