@@ -19,7 +19,7 @@ export const SessionList: React.FC<SessionListProps> = ({
   const hasSessions = sessions && sessions.length > 0;
 
   if (!hasSessions) {
-    // 空状态提示（仅样式，无业务改动）
+    // 空状态提示
     return (
       <ScrollArea className="flex-1 p-4">
         <div
