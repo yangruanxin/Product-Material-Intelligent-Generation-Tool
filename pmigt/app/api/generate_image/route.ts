@@ -10,7 +10,7 @@ const client = new OpenAI({
   baseURL: 'https://ark.cn-beijing.volces.com/api/v3',
 });
 
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 export async function POST(req: Request) {
   try {
