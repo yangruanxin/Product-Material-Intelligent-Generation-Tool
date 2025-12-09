@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server'; 
 import { getModelEndpointId } from '@/src/types/model';
 import sharp from 'sharp';
+import path from 'path';
 
 const client = new OpenAI({
   apiKey: process.env.VOLC_API_KEY,
@@ -136,61 +137,57 @@ export async function POST(req: Request) {
     
     try {
       // 定义水印文字
-      const watermarkText = "抖音电商前端训练营";
+      const fontPath = path.resolve(process.cwd(), 'assets/fonts/NotoSansSC-VariableFont_wght.ttf');
       
-      // 读取原始图片元数据（获取宽高等）
+      // 2. 读取原始图片元数据
       const image = sharp(originalBuffer);
       const metadata = await image.metadata();
       const width = metadata.width || 2048;
-      const height = metadata.height || 2048;
-
-      // 计算字体大小和边距（响应式：根据图片宽度计算，这里设为宽度的 2.5%）
-      const fontSize = Math.floor(width * 0.025); 
-      const marginX = Math.floor(width * 0.03); // 右边距
-      const marginY = Math.floor(height * 0.03); // 下边距
+      
+      // 3. 计算字体大小 (例如：宽度的 3%)
+      const fontSize = Math.floor(width * 0.03); 
+      const watermarkText = "抖音电商前端训练营";
 
       // 创建 SVG 水印层
       // 解释：
       // 1. viewBox 和 width/height 匹配原图大小
       // 2. text-shadow 用于在深色或浅色背景上都能看清文字（增加黑色阴影）
       // 3. x, y 坐标配合 text-anchor="end" 实现右对齐
-      const svgWatermark = `
-        <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
-          <style>
-            .watermark {
-              fill: rgba(255, 255, 255, 0.7); /* 白色，80%不透明度 */
-              font-size: ${fontSize}px;
-              font-family: sans-serif;
-              font-weight: bold;
-              text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.6); /* 黑色阴影提升对比度 */
-            }
-          </style>
-          <text 
-            x="${width - marginX}" 
-            y="${height - marginY}" 
-            text-anchor="end" 
-            class="watermark"
-          >${watermarkText}</text>
-        </svg>
-      `;
-
-      // 执行合成
       finalBuffer = await image
         .composite([
           {
-            input: Buffer.from(svgWatermark),
-            top: 0,
-            left: 0,
+            input: {
+              text: {
+                // Pango Markup 语法:
+                // <span font_desc="..."> 用于设置字号
+                // foreground 用于设置颜色 (rgba)
+                text: `<span foreground="rgba(255,255,255,0.8)" font_desc="${fontSize}px">${watermarkText}</span>`,
+                
+                // 【核心修改】这里直接传入字体文件路径，Sharp 会自动加载，无需系统安装
+                fontfile: fontPath, 
+                
+                // 设置文本区域宽度（防止文字太长超出）
+                width: Math.floor(width * 0.5), 
+                
+                // 对齐方式
+                align: 'right', 
+                
+                // 开启 RGBA 支持以显示半透明颜色
+                rgba: true 
+              }
+            },
+            // 定位：东南角 (右下角)
+            gravity: 'southeast', 
           },
         ])
-        // 保持原格式输出（如果原图是 png 则输出 png，jpeg 则 jpeg）
         .toBuffer();
         
        console.log("水印添加成功");
 
     } catch (processError) {
-       console.error("水印添加失败，将使用原图上传:", processError);
-       finalBuffer = originalBuffer; // 如果处理失败，降级使用原图，防止流程中断
+       console.error("水印添加失败，详细错误:", processError);
+       // 如果本地开发时报错，请检查 assets/fonts 文件夹是否存在以及文件名是否完全一致
+       finalBuffer = originalBuffer; 
     }
 
 
