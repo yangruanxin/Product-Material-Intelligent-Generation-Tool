@@ -14,7 +14,7 @@ interface SessionDrawerProps {
   onSessionChange: (sessionId: string) => void;
 }
 
-// ✅ 仅保留 target 值，不在 variants 中写 transition/filter，避免 TS 报错
+// 仅保留 target 值，不在 variants 中写 transition/filter，避免 TS 报错
 const drawerVariants: Variants = {
   hidden: { x: '-100%', opacity: 0.98 },
   visible: { x: '0%', opacity: 1 },
