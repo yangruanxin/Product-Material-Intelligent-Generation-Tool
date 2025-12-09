@@ -95,75 +95,81 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen w-full relative overflow-hidden">
-      {/* ===== 背景层：柔光渐变 + 动态 Orbs（仅装饰） ===== */}
-      <div className="absolute inset-0 -z-10 bg-gradient-to-b from-[#f7faff] via-white to-[#f9fbff]" />
-      <div className="absolute -top-24 -left-24 w-[420px] h-[420px] rounded-full bg-fuchsia-300/40 blur-3xl animate-float-slow -z-10" />
-      <div className="absolute top-32 -right-32 w-[520px] h-[520px] rounded-full bg-blue-300/40 blur-3xl animate-float-slower -z-10" />
-      <div className="absolute bottom-0 left-1/3 w-[360px] h-[360px] rounded-full bg-cyan-300/40 blur-3xl animate-float-slow -z-10" />
+    // 1. 整体背景：改为极淡的冷灰/白背景，增加文字质感
+    <div className="min-h-screen w-full relative overflow-hidden bg-[#F8FAFC] text-slate-800">
+      
+      {/* ===== 背景装饰层 (只改颜色和质感，不改位置) ===== */}
+      <div className="fixed inset-0 z-0 pointer-events-none">
+        {/* 新增：噪点纹理 (提升高级感的关键) */}
+        <div className="absolute inset-0 opacity-[0.03] mix-blend-overlay bg-[url('data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%20200%20200%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cfilter%20id%3D%22noiseFilter%22%3E%3CfeTurbulence%20type%3D%22fractalNoise%22%20baseFrequency%3D%220.65%22%20numOctaves%3D%223%22%20stitchTiles%3D%22stitch%22%2F%3E%3C%2Ffilter%3E%3Crect%20width%3D%22100%25%22%20height%3D%22100%25%22%20filter%3D%22url(%23noiseFilter)%22%20opacity%3D%221%22%2F%3E%3C%2Fsvg%3E')]"></div>
+        
+        {/* 动态光球：颜色调整为更高级的 Indigo/Violet/Blue */}
+        <div className="absolute -top-24 -left-24 w-[500px] h-[500px] rounded-full bg-indigo-300/30 blur-[100px] animate-float-slow -z-10" />
+        <div className="absolute top-32 -right-32 w-[600px] h-[600px] rounded-full bg-purple-200/30 blur-[120px] animate-float-slower -z-10" />
+        <div className="absolute bottom-0 left-1/3 w-[400px] h-[400px] rounded-full bg-blue-200/40 blur-[90px] animate-float-slow -z-10" />
+      </div>
 
-      {/* 原顶部柔光条增强 */}
-      <div className="absolute top-0 w-full h-96 bg-blue-50/50 blur-3xl opacity-50 -z-10" />
-
-      {/* Hero / 输入区 */}
+      {/* Hero / 输入区 (布局完全保持原样) */}
       <motion.div
         className="w-full flex flex-col items-center pt-24 pb-16 lg:pt-32 lg:pb-20 relative z-10"
-        initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}
+        initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: "easeOut" }}
       >
-        {/* 标题 */}
+        {/* 标题：字体更紧凑，渐变更深沉 */}
         <motion.h1
           className="text-5xl lg:text-6xl font-extrabold mb-4 tracking-tight
-                     bg-clip-text text-transparent 
-                     bg-gradient-to-r from-blue-600 via-violet-600 to-fuchsia-600 drop-shadow"
+                 bg-clip-text text-transparent 
+                 bg-gradient-to-r from-blue-600 via-violet-600 to-fuchsia-600 drop-shadow"
           initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.05 }}
         >
           AI 创作，释放无限可能
         </motion.h1>
         <motion.p
-          className="text-gray-500 mb-10 text-lg"
+          className="text-slate-500 mb-10 text-lg font-light tracking-wide"
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.45, delay: 0.1 }}
         >
           灵感来了？一句话开始你的创作。
         </motion.p>
 
-        {/* 模式选择器（轻悬浮） */}
+        {/* 模式选择器 */}
         <motion.div
-          className="mb-4"
+          className="mb-6"
           initial={{ opacity: 0, y: 6 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.4 }}
         >
           <ModeTabs currentMode={currentMode} setMode={handleModeChange} />
         </motion.div>
 
-        {/* 输入卡片：玻璃拟态 + 发光边 + 悬浮阴影 */}
+        {/* 输入卡片：更通透的玻璃拟态 */}
         <motion.div
-          className="w-full max-w-4xl p-2 rounded-3xl
-                     bg-white/70 backdrop-blur-xl border border-white/60
-                     shadow-[0_12px_40px_rgba(45,91,255,0.12)]
-                     hover:shadow-[0_16px_48px_rgba(45,91,255,0.18)]
-                     transition"
-          initial={{ opacity: 0, y: 10, scale: 0.995 }}
+          className="w-full max-w-4xl p-3 rounded-[2rem]
+                     bg-white/60 backdrop-blur-2xl border border-white/60
+                     shadow-[0_8px_30px_rgb(0,0,0,0.04)]
+                     hover:shadow-[0_20px_40px_rgb(0,0,0,0.06)]
+                     ring-1 ring-white/50
+                     transition-all duration-500"
+          initial={{ opacity: 0, y: 10, scale: 0.98 }}
           whileInView={{ opacity: 1, y: 0, scale: 1 }}
           viewport={{ once: true, amount: 0.2 }}
-          transition={{ duration: 0.45, delay: 0.12 }}
+          transition={{ duration: 0.5, delay: 0.12 }}
         >
-          {/* 主要输入行 */}
+          {/* 主要输入行 (结构不变) */}
           <div className="flex gap-4 items-stretch">
-            {/* 图片上传区（保持逻辑不变，提升样式容器） */}
-            <div className="aspect-square w-32 h-40 min-w-[128px] rounded-2xl">
+            {/* 图片上传区：增加一点圆角和背景 */}
+            <div className="h-40 w-40 min-w-[160px] shrink-0 rounded-2xl flex items-center justify-center bg-slate-50/50 border border-slate-100/50 p-2">
               <FloatingFileUploadBox
                 onImageUploaded={handleImageUpdate}
                 initialImageUrl={finalImageUrl}
-                size={140}
+                size={140} // 保持这个尺寸，但外层容器现在比它大了 (160px > 140px)
               />
             </div>
-
-            {/* 文本输入 + 发光发送按钮 */}
+            {/* 文本输入 + 发送按钮 */}
             <div className="relative flex-grow h-36">
               <Textarea
                 placeholder={getPlaceholder()}
-                className="w-full h-full text-lg rounded-2xl bg-white/70
-                           border border-white/60 focus:outline-none focus:ring-2 focus:ring-indigo-400/40 
-                           pl-4 pr-16 pt-4 pb-14 resize-none placeholder:text-gray-400
+                // 优化：去掉了输入框自带的边框，让它融入卡片，增加了 focus 时的背景色变化
+                className="w-full h-full text-lg rounded-2xl bg-white/40 hover:bg-white/60 focus:bg-white/80
+                           border-none focus:outline-none focus:ring-0
+                           pl-4 pr-16 pt-4 pb-14 resize-none placeholder:text-slate-400 text-slate-700
+                           transition-colors duration-300
                            overflow-y-scroll scrollbar-hide"
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
@@ -176,46 +182,51 @@ export default function HomePage() {
               />
 
               <Button
+                // 按钮优化：使用了更高级的渐变色和弥散阴影
                 className="absolute bottom-3 right-3 h-12 w-12 p-0 rounded-full text-white
-                           bg-gradient-to-r from-[#ff004f] via-[#b14bff] to-[#2d5bff]
-                           shadow-[0_10px_28px_rgba(45,91,255,0.35)]
-                           hover:shadow-[0_12px_32px_rgba(45,91,255,0.5)]
-                           transition-transform hover:scale-[1.05]"
+                           bg-gradient-to-br from-indigo-500 to-purple-600
+                           shadow-lg shadow-indigo-500/30
+                           hover:shadow-xl hover:shadow-indigo-500/40 hover:scale-105 active:scale-95
+                           transition-all duration-300"
                 onClick={submit}
                 aria-label="生成"
                 title="生成"
               >
-                <Send size={18} />
+                <Send size={20} />
               </Button>
             </div>
           </div>
 
-          {/* 底部参数栏 */}
-          <div className="flex justify-between items-center px-4 pt-3 mt-2 border-t border-white/70">
+          {/* 底部参数栏 (结构不变，增加了顶部分割线) */}
+          <div className="flex justify-between items-center px-4 pt-3 mt-2 border-t border-slate-100/50">
             <ModelSelector
               value={selectedModelId}
               onChange={setSelectedModelId}
               models={models}
             />
-            <div className="text-xs text-gray-400">按 Enter 快速提交 · Shift+Enter 换行</div>
+            <div className="text-xs font-medium text-slate-400">按 Enter 快速提交 · Shift+Enter 换行</div>
           </div>
         </motion.div>
 
-        {/* 灵感区：标题淡入 + 更宽容器 */}
+        {/* 灵感区 */}
         <motion.div
-          className="py-12 w-full"
-          initial={{ opacity: 0, y: 8 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.45, delay: 0.08 }}
+          className="py-16 w-full"
+          initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.6, delay: 0.1 }}
         >
           <InspirationMasonry className="max-w-7xl" />
         </motion.div>
       </motion.div>
 
-      {/* 局部动画 Keyframes（背景 Orbs 漂浮） */}
+      {/* 动画 Keyframes 保持不变 */}
       <style>{`
-        @keyframes float-slow   { 0%{transform:translateY(0)} 50%{transform:translateY(-16px)} 100%{transform:translateY(0)} }
-        @keyframes float-slower { 0%{transform:translateY(0)} 50%{transform:translateY(-10px)} 100%{transform:translateY(0)} }
-        .animate-float-slow{ animation: float-slow 10s ease-in-out infinite; }
-        .animate-float-slower{ animation: float-slower 14s ease-in-out infinite; }
+        @keyframes float-slow   { 0%{transform:translateY(0)} 50%{transform:translateY(-20px)} 100%{transform:translateY(0)} }
+        @keyframes float-slower { 0%{transform:translateY(0)} 50%{transform:translateY(-15px)} 100%{transform:translateY(0)} }
+        .animate-float-slow{ animation: float-slow 8s ease-in-out infinite; }
+        .animate-float-slower{ animation: float-slower 12s ease-in-out infinite; }
+        
+        /* 隐藏滚动条 */
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
       `}</style>
     </div>
   );

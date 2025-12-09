@@ -160,7 +160,7 @@ export default function LibraryPage() {
   ];
 
   return (
-    <div className="flex-1 h-full bg-[#F4F6F8] flex flex-col overflow-hidden font-sans">
+    <div className="flex-1 h-screen bg-[#F4F6F8] flex flex-col overflow-hidden font-sans">
       
       <header className="px-8 py-6 bg-white/80 backdrop-blur-md border-b border-gray-200/60 sticky top-0 z-20 flex items-center justify-between shrink-0">
         <div>
@@ -193,14 +193,14 @@ export default function LibraryPage() {
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto p-6 md:p-8">
+      <main className="flex-1 overflow-y-auto p-6 md:p-8 flex flex-col">
         
         {loading ? (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-6">
             {Array.from({ length: 10 }).map((_, i) => <SkeletonCard key={i} />)}
           </div>
         ) : filteredAssets.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-[60vh]">
+          <div className="flex-1 flex flex-col items-center justify-center w-full h-full min-h-[400px] animate-in fade-in duration-500">
             <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center shadow-lg mb-6 border border-gray-50">
               <ImageIcon className="w-10 h-10 text-gray-300" />
             </div>
