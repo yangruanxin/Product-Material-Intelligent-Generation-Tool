@@ -16,6 +16,8 @@ interface GenState {
     activeSessionId: string | null;//当前选中的会话 ID
     isSessionLoading: boolean;//是否在加载会话列表
     sessionError: string | null;
+    hasLoadedSessions: boolean; 
+    setHasLoadedSessions: (loaded: boolean) => void;
     // 消息相关
     messages: UIMessage[];//消息列表
     isAILoading: boolean;//判断AI是否正在生成
@@ -113,6 +115,7 @@ export const useGenStore = create<GenState>()(
         activeSessionId: null,
         isSessionLoading:false,
         sessionError: null,
+        hasLoadedSessions: false, // 默认未加载
         //消息相关
         messages: [],
         isAILoading: false,
@@ -143,7 +146,7 @@ export const useGenStore = create<GenState>()(
         // 会话加载
         setIsSessionLoading: (loading) => set({ isSessionLoading: loading }),
         setSessionError: (error) => set({ sessionError: error }),
-        
+        setHasLoadedSessions: (loaded) => set({ hasLoadedSessions: loaded }),
         // 消息相关
         setMessages: (messages) => set({ messages }),
         addMessage: (message) => set((state) => ({ 
@@ -297,10 +300,9 @@ export const useGenStore = create<GenState>()(
             };
         },
 
-        // 排除 isLoading，确保刷新后恢复到 false
         partialize: (state) => {
             // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            const { isLoading,isSessionLoading, sessionError,isHydrated, ...persistentState } = state;
+            const { isSessionLoading, sessionError,isHydrated,hasLoadedSessions, ...persistentState } = state;
             return persistentState;
       },
     }
