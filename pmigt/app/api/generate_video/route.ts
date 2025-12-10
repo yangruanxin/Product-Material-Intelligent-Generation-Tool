@@ -65,7 +65,12 @@ async function generateScriptWithLLM(imageUrl: string, userPrompt: string, endpo
       temperature: 0.7,
       max_tokens: 200,
       stream: false,   
-    });
+      thinking: {
+        "type": "disabled", 
+      }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    }as any);
+
 
     const script = response.choices[0]?.message?.content || "";
     console.log("【LLM】生成的文案:", script);

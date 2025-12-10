@@ -12,68 +12,43 @@ const client = new OpenAI({
   baseURL: 'https://ark.cn-beijing.volces.com/api/v3',
 });
 
+const getFontPath = () => {
+  const fontPath = path.join(process.cwd(), 'public', 'fonts', 'NotoSansSC-Bold.ttf');
+  if (!fs.existsSync(fontPath)) {
+     console.error(`❌ 字体文件未找到，路径: ${fontPath}`);
+     return null;
+  }
+  return fontPath;
+}
+
 export const maxDuration = 300;
 
 export async function POST(req: Request) {
   try {
-
     const supabase = await createClient();
 
+    //鉴权 
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
     console.log("【来源】Cookie 解析结果:", user ? `✅ 成功 (ID: ${user.id})` : "❌ 失败 (无用户)");
 
-    // 如果没拿到 user，直接拦截
     if (authError || !user) {
       return NextResponse.json({ success: false, error: "请先登录" }, { status: 401 });
     }
     
-    // 使用这个真实的 ID 替换之前的 userId 参数
     const userId = user.id;
 
-    // 接收前端传来的参数
+    //解析参数
     const { saveImageUrl, contextImageUrl, isRegenerate, deleteMessageId, styleImageUrl, userPrompt, sessionId, modelId } = await req.json();
     
     const backendEndpointId = getModelEndpointId(modelId);
 
     if (!backendEndpointId) {
-        // 如果找不到对应的后端 ID，返回错误
         return NextResponse.json(
             { success: false, error: `Invalid model configuration for ID: ${modelId}` }, 
             { status: 400 }
         );
     }
-
-    let currentSessionId = sessionId;
-
-    if (!currentSessionId) {
-      const { data: session, error: sessionError } = await supabase
-        .from('sessions')
-        .insert({
-          user_id: userId,
-          name: "图片合成任务", // 给新会话起个默认名字
-        })
-        .select()
-        .single();
-      
-      if (sessionError) throw new Error("创建会话失败: " + sessionError.message);
-      currentSessionId = session.id;
-    }
-
-    if (!isRegenerate) {
-      await supabase.from('messages').insert({
-        session_id: currentSessionId,
-        user_id: userId,
-        role: 'user',
-        content: userPrompt,
-        image_url: saveImageUrl
-      });
-    }
-
-    if (isRegenerate && deleteMessageId) {
-      await supabase.from('messages').delete().eq('id', deleteMessageId);
-    }
-
 
     const imageGenerationPrompt = `
     #role
@@ -106,7 +81,8 @@ export async function POST(req: Request) {
     ${userPrompt}
     `;
 
-    const imageResponse = await client.images.generate({
+    // 启动 AI 请求
+    const aiRequestPromise = client.images.generate({
       model: backendEndpointId, 
       prompt: imageGenerationPrompt,
       size: "2048x2048",
@@ -115,7 +91,51 @@ export async function POST(req: Request) {
       watermark: false,
       sequential_image_generation: "disabled",
     //eslint-disable-next-line @typescript-eslint/no-explicit-any
-    }as any);
+    } as any);
+
+    const dbPreparationPromise = (async () => {
+        let currentSessionId = sessionId;
+
+        // 确保 Session 存在
+        if (!currentSessionId) {
+            const { data: session, error: sessionError } = await supabase
+                .from('sessions')
+                .insert({
+                user_id: userId,
+                name: "图片合成任务",
+                })
+                .select('id')
+                .single();
+            
+            if (sessionError) throw new Error("创建会话失败: " + sessionError.message);
+            currentSessionId = session.id;
+        }
+
+        // 处理旧消息删除 (Regenerate 场景)
+        if (isRegenerate && deleteMessageId) {
+            await supabase.from('messages').delete().eq('id', deleteMessageId);
+        }
+
+        // 插入用户消息
+        if (!isRegenerate) {
+            await supabase.from('messages').insert({
+                session_id: currentSessionId,
+                user_id: userId,
+                role: 'user',
+                content: userPrompt,
+                image_url: saveImageUrl
+            });
+        }
+
+        return currentSessionId;
+    })();
+
+    // 只有当 AI 生成完成 且 数据库准备完成 后，才继续往下走
+    // 这样数据库操作的时间就被 AI 生成的时间掩盖了
+    const [imageResponse, currentSessionId] = await Promise.all([
+        aiRequestPromise,
+        dbPreparationPromise
+    ]);
 
     const tempImageUrl = imageResponse.data?.[0]?.url;
 
@@ -133,16 +153,13 @@ export async function POST(req: Request) {
     const contentType = fetchRes.headers.get('content-type') || 'image/jpeg';
     const extension = contentType.split('/')[1] || 'jpeg';
 
-    //使用 Sharp 添加水印 
+    // 使用 Sharp 添加水印 
     let finalBuffer: Buffer;
     
     try {
-      // 1. 确定字体路径
-      const fontPath = path.join(process.cwd(), 'public', 'fonts', 'NotoSansSC-Bold.ttf');
+      const fontPath = getFontPath();
       
-      // 检查文件是否存在
-      if (!fs.existsSync(fontPath)) {
-         console.error(`❌ 字体文件未找到，路径: ${fontPath}`);
+      if (!fontPath) {
          throw new Error("Font file missing");
       }
 
@@ -150,32 +167,24 @@ export async function POST(req: Request) {
       const metadata = await image.metadata();
       const width = metadata.width || 2048;
       
-      // 2. 计算字体大小
-      // Pango 的 size 属性单位是 "1/1024 点"，所以我们需要把像素值 * 1024
       const fontSizePx = Math.floor(width * 0.03); 
       const pangoSize = fontSizePx * 1024; 
       const watermarkText = "抖音电商前端训练营";
 
-      // 3. 执行合成
       finalBuffer = await image
         .composite([
           {
             input: {
               text: {
-                // 【关键修复 1】颜色必须使用 Hex 格式 (#RRGGBBAA)，Pango 不支持 rgba() 函数
-                // #FFFFFFCC -> 白色 (FFFFFF) + 80%透明度 (CC)
-                // 【关键修复 2】直接在 span 里指定 size，避免外部冲突
                 text: `<span foreground="#FFFFFFCC" size="${pangoSize}">${watermarkText}</span>`,
-                
-                fontfile: fontPath,     // 强制加载字体文件
-                font: 'Noto Sans SC',   // 字体族名（作为后备）
-                
-                width: Math.floor(width * 0.8), // 文本容器宽度
-                align: 'right',         // 文字右对齐
-                rgba: true              // 允许 alpha 通道
+                fontfile: fontPath,     
+                font: 'Noto Sans SC',   
+                width: Math.floor(width * 0.8), 
+                align: 'right',         
+                rgba: true              
               }
             },
-            gravity: 'southeast', // 放在右下角
+            gravity: 'southeast', 
           },
         ])
         .toBuffer();
@@ -186,7 +195,6 @@ export async function POST(req: Request) {
        console.error("❌ 水印添加失败，详细错误:", processError);
        finalBuffer = originalBuffer; 
     }
-
 
 
     const fileName = `images/${userId}/${Date.now()}_generated.${extension}`;
@@ -208,8 +216,6 @@ export async function POST(req: Request) {
       .getPublicUrl(fileName);
 
     console.log("图片已转存:", finalPermanentUrl);
-
-
 
     const { data: assistantMessage} = await supabase
       .from('messages')
