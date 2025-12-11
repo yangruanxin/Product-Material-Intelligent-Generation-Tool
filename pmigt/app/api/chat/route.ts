@@ -132,17 +132,30 @@ export async function POST(req: Request) {
     console.log("AI 完整返回内容:", accumulatedContent.slice(0, 100) + '...');
     
     // JSON 清洗
-    const cleanJson = accumulatedContent.replace(/```json|```/g, '').trim();
+    let cleanText = accumulatedContent.replace(/```json|```/g, '').trim();
+
+    const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
+
+    if (jsonMatch) {
+        cleanText = jsonMatch[0];
+    } else {
+        console.warn("未能在 AI 响应中提取到 JSON 结构");
+    }
+
     let parsedData = {}; 
     try {
-       parsedData = JSON.parse(cleanJson);
-    } catch {
-       console.log("入库时 JSON 解析失败，将存储原始文本");
+       // 尝试解析提取后的纯 JSON 字符串
+       parsedData = JSON.parse(cleanText);
+    } catch (e) {
+       console.error("JSON 解析仍然失败:", e);
     }
     
+    // 决定最终存储内容
+    // 如果解析成功，存储 stringify 后的标准 JSON
+    // 如果失败，只能存储原始文本（前端需要做容错处理）
     const finalContentToSave = Object.keys(parsedData).length > 0 
         ? JSON.stringify(parsedData) 
-        : accumulatedContent;
+        : accumulatedContent; // 或者你可以返回一个特定的错误 JSON 结构
         
     const { data: finalMsg, error: insertError } = await supabase
       .from('messages')
