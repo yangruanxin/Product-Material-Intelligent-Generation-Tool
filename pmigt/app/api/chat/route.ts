@@ -1,4 +1,3 @@
-// app/api/generate-text/route.ts (假设路径)
 import { OpenAI } from 'openai';
 import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server'; 

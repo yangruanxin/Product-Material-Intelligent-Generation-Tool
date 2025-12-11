@@ -26,9 +26,12 @@ import { MediaPreviewPanel } from "@/components/chat/MediaPreviewPanel";
 import { FloatingFileUploadBox } from "@/components/FloatingFileUploadBox";
 import { useRouter } from 'next/navigation';
 import { useGenStore } from "@/src/store/useGenStore";
+import { useInitialSessionLoader } from '@/hooks/useInitialSessionLoader';
 
 export default function GeneratePage() {
     const router = useRouter();
+    // 确保会话列表在generate页面也能加载
+    useInitialSessionLoader();
     // 获取首页传的参数
     const homePrompt = useGenStore(state => state.homePrompt);
     const homeMode = useGenStore(state => state.homeMode);
@@ -126,7 +129,7 @@ export default function GeneratePage() {
 
     // 监听activeId的变化来更新消息数组
     useEffect(() => {
-        if (activeSessionId && messages.length === 0) {
+        if (activeSessionId && messages.length === 0 && userId) {
             const loadHistory = async () => {
                 // 显示加载动画
                 setIsHistoryLoading(true);
@@ -213,7 +216,7 @@ export default function GeneratePage() {
             };
             loadHistory();
         }
-        // 只有在 activeSessionId 改变时运行
+        // 只有在 activeSessionId改变时运行
     },[activeSessionId, loadSessionMessages, setMessages,messages.length,setLastAIMessageId,setLastUserPrompt,setCurrentSessionImageUrl])
 
     // AI占位消息，用于加载动画，后续删除
@@ -385,6 +388,7 @@ export default function GeneratePage() {
 
                 try {
                     finalParsedData = JSON.parse(result.content);
+                // eslint-disable-next-line @typescript-eslint/no-unused-vars
                 } catch (e) {
                     console.error("JSON解析失败:", result.content);
                     finalResponseText = "AI 返回内容格式错误";
@@ -487,7 +491,7 @@ export default function GeneratePage() {
     
     // 若有prompt和imageUrl,自动发送
     useEffect(() => {
-        console.log("shouldLaunchNewSession:",shouldLaunchNewSession)
+        //console.log("shouldLaunchNewSession:",shouldLaunchNewSession)
         // 检查条件：
         if (isInitialized || !homeImageUrl || !homePrompt || autoSentRef.current||!shouldLaunchNewSession) {
             return;

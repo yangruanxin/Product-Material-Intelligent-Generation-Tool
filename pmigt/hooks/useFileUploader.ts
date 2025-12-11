@@ -5,7 +5,6 @@ import { useUser } from "@/components/user/UserProvider";
 import { toast } from 'sonner';
 // 引入图片压缩库
 import imageCompression from 'browser-image-compression'; 
-import { proxySupabaseUrl } from '@/utils/supabase/proxySupabase';
 
 const SUPABASE_BUCKET_NAME = "images"; 
 // 确保客户端 Supabase 实例正确初始化
@@ -30,11 +29,11 @@ export const useFileUploader = () => {
     const uploadFileToSupabase = useCallback(async (file: File): Promise<string | null> => {
         console.log("进入上传图片函数");
         
-        // 1. 前置检查
+        // 前置检查
         if (loading) {
-            toast.warning("会话初始化中...", { 
+            toast.warning("页面初始化中...", { 
                 description: "请等待页面加载完成后再尝试上传。",
-                duration: 3000
+                duration: 5000
             });
             console.warn("UserProvider 仍在加载中，无法执行上传。");
             return null;

@@ -145,6 +145,7 @@ export const MediaPreviewPanel: React.FC<MediaPreviewPanelProps> = ({
                                 src={proxySupabaseUrl(imageUrl)!}
                                 alt="Result"
                                 className="w-full h-full object-cover"
+                                onClick={() => window.open(proxySupabaseUrl(imageUrl!), "_blank")}
                             />
                         </div>
                     )}
@@ -165,6 +166,8 @@ export const MediaPreviewPanel: React.FC<MediaPreviewPanelProps> = ({
         </div>
 
       </div>
+      
     </div>
+    
   );
 };
