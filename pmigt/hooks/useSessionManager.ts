@@ -54,6 +54,7 @@ export const useSessionManager = (
         try {
             const response = await fetch(`/api/messages?sessionId=${id}`, {
                 method: 'GET',
+                credentials: 'include', // 包含认证信息
             });
 
             if (!response.ok) {

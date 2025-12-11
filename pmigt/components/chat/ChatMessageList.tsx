@@ -1,5 +1,5 @@
+// src/components/chat/ChatMessageList.tsx
 /* eslint-disable @typescript-eslint/no-explicit-any */
-// src/components/ChatMessageList.tsx
 "use client";
 
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
@@ -56,8 +56,8 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
     ) as HTMLDivElement | null;
     if (!vp) return;
     viewportRef.current = vp;
-    vp.style.overscrollBehavior = "contain";          // 防滚动串联/回弹
-    (vp.style as any).overflowAnchor = "none";        // 彻底关锚点
+    vp.style.overscrollBehavior = "contain";
+    (vp.style as any).overflowAnchor = "none";
   }, []);
 
   const calcNearBottom = useCallback(() => {
@@ -71,14 +71,12 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
     (instant = false) => {
       const vp = viewportRef.current;
       if (!vp) return;
-      const behavior: ScrollBehavior =
-        instant || prefersReducedMotion ? "auto" : "smooth";
+      const behavior: ScrollBehavior = instant || prefersReducedMotion ? "auto" : "smooth";
       requestAnimationFrame(() => vp.scrollTo({ top: desiredBottom(vp), behavior }));
     },
     [prefersReducedMotion]
   );
 
-  // 等媒体/高度稳定（150ms 无变化）或最多 cap
   const waitStable = useCallback(
     (cap = 1200) =>
       new Promise<void>((resolve) => {
@@ -116,7 +114,9 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
         bindMedia(container);
 
         const mo = new MutationObserver((muts) => {
-          muts.forEach((m) => m.addedNodes.forEach((n) => n instanceof HTMLElement && bindMedia(n)));
+          muts.forEach((m) =>
+            m.addedNodes.forEach((n) => n instanceof HTMLElement && bindMedia(n))
+          );
         });
         mo.observe(container, { childList: true, subtree: true });
 
@@ -126,47 +126,50 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
     []
   );
 
-  // 强硬吸底（3 帧 + 稳定后再设一次），期间禁用平滑
-  const snapToBottomHard = useCallback(
-    async () => {
-      const vp = viewportRef.current;
-      if (!vp) return;
-      restoringRef.current = true;
+  const snapToBottomHard = useCallback(async () => {
+    const vp = viewportRef.current;
+    if (!vp) return;
+    restoringRef.current = true;
 
-      const prevBehavior = vp.style.scrollBehavior;
-      vp.style.scrollBehavior = "auto"; // why: 禁平滑，避免回弹
+    const prevBehavior = vp.style.scrollBehavior;
+    vp.style.scrollBehavior = "auto"; // 避免回弹
 
-      const setOnce = () => (vp.scrollTop = desiredBottom(vp));
+    const setOnce = () => (vp.scrollTop = desiredBottom(vp));
 
-      setOnce();               // 同步设一次
-      await nextPaint();
-      setOnce();               // 第 1 帧后
-      await nextPaint();
-      setOnce();               // 第 2 帧后
+    // setOnce();
+    // await nextPaint();
+    // setOnce();
+    // await nextPaint();
+    // setOnce();
 
-      await waitStable(1200);  // 等媒体/高度稳定
-      setOnce();               // 稳定后最终设一次
+    await waitStable(1200);
+    setOnce();
 
-      vp.style.scrollBehavior = prevBehavior ?? "";
-      restoringRef.current = false;
-    },
-    [waitStable]
-  );
+    vp.style.scrollBehavior = prevBehavior ?? "";
+    restoringRef.current = false;
+  }, [waitStable]);
 
-  // 历史 直接显示底部（不平滑、连续多帧）
+  // 历史加载完成后处理：空列表必须立刻放行遮罩
   useEffect(() => {
     if (isHistoryLoading) {
       setMaskVisible(true);
       setRevealReady(false);
       return;
     }
-    if (!isHistoryLoading && messages.length > 0) {
-      justFinishedRef.current = true;
-      (async () => {
-        await snapToBottomHard();
+
+    if (!isHistoryLoading) {
+      if (messages.length > 0) {
+        justFinishedRef.current = true;
+        (async () => {
+          await snapToBottomHard();
+          setRevealReady(true);
+          setTimeout(() => setMaskVisible(false), 120);
+        })();
+      } else {
+        // 空态不需要等待，直接显示欢迎视图
         setRevealReady(true);
-        setTimeout(() => setMaskVisible(false), 120);
-      })();
+        setMaskVisible(false);
+      }
     }
   }, [isHistoryLoading, messages.length, snapToBottomHard]);
 
@@ -177,7 +180,7 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
     const onScroll = () => {
       if (restoringRef.current) {
         const target = desiredBottom(vp);
-        if (vp.scrollTop !== target) vp.scrollTop = target; // 恢复期强制吸底
+        if (vp.scrollTop !== target) vp.scrollTop = target;
       }
       setIsSticky(calcNearBottom());
     };
@@ -192,7 +195,7 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
     const isNew = messages.length > prevLen.current;
     if (isNew && isSticky) toBottom(false);
     if (messages.length > 0 && justFinishedRef.current) {
-      toBottom(true); // 恢复后第一次渲染再对齐一次（瞬时）
+      toBottom(true);
       justFinishedRef.current = false;
     }
     prevLen.current = messages.length;
@@ -202,7 +205,6 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
   const lastMessage = messages[messages.length - 1];
   const lastMessageId = lastMessage?.id;
 
-  // 遮罩挂到 viewport：永远在组件可视区正中
   const MaskPortal =
     showMask && viewportRef.current
       ? createPortal(
@@ -217,7 +219,9 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
             >
               <div className="flex flex-col items-center gap-3 text-gray-600">
                 <div className="h-10 w-10 rounded-full border-4 border-gray-300 border-t-indigo-500 animate-spin" />
-                <p className="text-sm font-medium">{isHistoryLoading ? "恢复会话中..." : "准备视图..."}</p>
+                <p className="text-sm font-medium">
+                  {isHistoryLoading ? "恢复会话中..." : "准备视图..."}
+                </p>
               </div>
             </motion.div>
           </AnimatePresence>,

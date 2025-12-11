@@ -32,6 +32,7 @@ export const useInitialSessionLoader = () => {
         try {
             const response = await fetch(`${API_URL}?userId=${id}`, {
                 method: 'GET',
+                credentials: 'include', // 包含认证信息
             });
             
             if (!response.ok) throw new Error('Failed to fetch sessions');

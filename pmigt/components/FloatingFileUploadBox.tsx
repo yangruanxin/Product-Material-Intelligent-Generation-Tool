@@ -182,11 +182,11 @@ export const FloatingFileUploadBox: React.FC<FloatingFileUploadBoxProps> = ({
                             className="w-full h-full object-cover rounded-xl"
                         />
 
-                        {/* ⛔ 上传中遮罩层（覆盖在预览图上方，不闪白） */}
-                        {isUploading && (
+                        {/* 上传中遮罩层（覆盖在预览图上方，不闪白） */}
+                        {(isUploading || loading) && (
                             <div className="absolute inset-0 bg-black/40 backdrop-blur-sm flex flex-col items-center justify-center z-20">
                                 <Loader2 className="w-8 h-8 text-white animate-spin mb-2" />
-                                <span className="text-xs text-white/80">上传中...</span>
+                                <span className="text-xs text-white/80">{loading ? "加载中..." : "上传中..."}</span>
                             </div>
                         )}
 
@@ -208,8 +208,19 @@ export const FloatingFileUploadBox: React.FC<FloatingFileUploadBoxProps> = ({
                     </motion.div>
                 )}
 
+                {/* 加载状态 */}
+                {!displayImage && (loading || isUploading) && (
+                    <motion.div 
+                        key="loading"
+                        className="flex flex-col items-center justify-center pointer-events-none"
+                    >
+                        <Loader2 className="w-8 h-8 text-gray-500 animate-spin mb-2" />
+                        <span className="text-xs font-medium text-gray-500">{loading ? "加载中..." : "上传中..."}</span>
+                    </motion.div>
+                )}
+
                 {/* 错误提示 */}
-                {!displayImage && !isUploading && uploadError && (
+                {!displayImage && !isUploading && !loading && uploadError && (
                     <motion.div 
                         key="error"
                         initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
@@ -222,7 +233,7 @@ export const FloatingFileUploadBox: React.FC<FloatingFileUploadBoxProps> = ({
                 )}
 
                 {/* 默认空状态 */}
-                {!displayImage && !isUploading && !uploadError && (
+                {!displayImage && !isUploading && !loading && !uploadError && (
                     <motion.div 
                         key="empty"
                         className="flex flex-col items-center justify-center pointer-events-none"
